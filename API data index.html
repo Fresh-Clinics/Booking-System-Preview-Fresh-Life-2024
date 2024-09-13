@@ -291,14 +291,13 @@ $(document).ready(function () {
                 console.log("Processing event:", event); // Log each event to verify its structure
                 const providerId = Object.keys(event.unit_map)[0]; // Get the provider ID from the unit_map
 
-                // Fetch available time intervals for the selected day only
-                fetchAvailableIntervals(token, event.id, start, function (availableIntervals) {
-                    availableIntervals.forEach(interval => {
-                        const startTime = interval[0];
+                // Fetch start times dynamically using getStartTimeMatrix
+                fetchEventStartTime(token, event.id, providerId, start, end, function (startTimes) {
+                    startTimes.forEach(startTime => {
                         const duration = parseInt(event.duration, 10); // Duration in minutes
                         const endTime = addMinutesToTime(startTime, duration); // Calculate end time
 
-                        // Push each time interval as a separate event
+                        // Push each start time as a separate event
                         calendarEvents.push({
                             id: event.id,
                             title: event.name,
@@ -327,7 +326,7 @@ $(document).ready(function () {
         });
     }
 
-    function fetchAvailableIntervals(token, eventId, date, callback) {
+    function fetchEventStartTime(token, eventId, unitId, from, to, callback) {
         var client = new JSONRpcClient({
             'url': 'https://user-api.simplybook.me',
             'headers': {
@@ -339,16 +338,18 @@ $(document).ready(function () {
             }
         });
 
-        client.request('getServiceAvailableTimeIntervals', [date, date, eventId, null, 1], function (intervals) {
-            console.log("Fetched available time intervals for event:", intervals);
-            if (intervals && intervals[date] && intervals[date][eventId]) {
-                callback(intervals[date][eventId]);
+        client.request('getStartTimeMatrix', [from, from, eventId, [unitId], 1, null, []], function (timeMatrix) {
+            console.log("Fetched start times for event:", timeMatrix);
+            if (timeMatrix && Object.keys(timeMatrix).length > 0) {
+                const dateKeys = Object.keys(timeMatrix);
+                const startTimes = dateKeys.flatMap(dateKey => timeMatrix[dateKey].flat());
+                callback(startTimes);
             } else {
-                console.error("No available time intervals for event:", eventId);
+                console.error("No start time available for the given parameters.");
                 callback([]);
             }
         }, function (error) {
-            console.error("Error fetching available time intervals:", error);
+            console.error("Error fetching start times:", error);
             callback([]);
         });
     }
