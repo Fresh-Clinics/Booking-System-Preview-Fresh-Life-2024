@@ -286,7 +286,7 @@ $(document).ready(function () {
 
                             // Push each interval as a separate event
                             calendarEvents.push({
-                                id: event.id,
+                                id: `${event.id}-${startTime}`,  // Unique ID for each event instance
                                 title: event.name,
                                 start: startTime,
                                 end: endTime,
@@ -379,13 +379,14 @@ $(document).ready(function () {
             { id: '12', title: 'Xytide', category: 'Training Suites', order_id: 'q' },
             { id: '15', title: 'Fresh Clinics | Room 1', category: 'Training Suites', order_id: 'r' },
             { id: '27', title: 'Fresh Clinics | Room 2', category: 'Training Suites', order_id: 's' },
-            { id: '20', title: 'Venus Concept', category: 'Activations Hub', order_id: 't' },
-            { id: '17', title: 'Alma', category: 'Activations Hub', order_id: 'u' },
-            { id: '19', title: 'Advanced Skin Technology', category: 'Activations Hub', order_id: 'v' },
-            { id: '22', title: 'Fresh Tech Hub', category: 'Activations Hub', order_id: 'w' },
-            { id: '18', title: 'The Skincare Company', category: 'Activations Hub', order_id: 'x' },
-            { id: '21', title: 'Wellness Sessions', category: 'Wellness & Spa', order_id: 'y' },
-            { id: '16', title: 'The Fresh Spa', category: 'Wellness & Spa', order_id: 'z' }
+            { id: '28', title: 'Fresh Clinics | Room 2', category: 'Training Suites', order_id: 't' },
+            { id: '20', title: 'Venus Concept', category: 'Activations Hub', order_id: 'u' },
+            { id: '17', title: 'Alma', category: 'Activations Hub', order_id: 'v' },
+            { id: '19', title: 'Advanced Skin Technology', category: 'Activations Hub', order_id: 'w' },
+            { id: '22', title: 'Fresh Tech Hub', category: 'Activations Hub', order_id: 'x' },
+            { id: '18', title: 'The Skincare Company', category: 'Activations Hub', order_id: 'y' },
+            { id: '21', title: 'Wellness Sessions', category: 'Wellness & Spa', order_id: 'z' },
+            { id: '16', title: 'The Fresh Spa', category: 'Wellness & Spa', order_id: 'zz' }
         ];
     }
 });
