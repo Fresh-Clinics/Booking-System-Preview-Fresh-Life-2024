@@ -52,7 +52,7 @@
         }
 
         .fc-timegrid-event-harness-inset .fc-timegrid-event {
-            border-top: 4px solid #142652; /* Default style */
+            border-top: 4px solid #142652 !important; /* Default color */
         }
 
         .fc-event-content {
@@ -105,8 +105,8 @@
 
         .popup-content {
             background: white;
-            padding: 0px 20px; /* Adjusted padding */
-            border-radius: 4px; /* Adjusted border radius */
+            padding: 0px 20px; /* Correct padding */
+            border-radius: 4px;
             max-width: 400px;
             width: 90%;
             max-height: 90%; /* Limit height */
@@ -126,16 +126,13 @@
             top: 10px;
             right: 10px;
             cursor: pointer;
-            z-index: 1001; /* Higher z-index to stay on top */
         }
 
         .popup-footer {
             margin-top: auto; /* Push to the bottom */
-            padding: 15px; /* Adjusted padding */
+            padding: 15px; /* Correct padding */
             border-top: 1px solid #ddd; /* Divider line */
             font-size: 0.9rem;
-            background: white; /* Same background as popup content */
-            z-index: 1001; /* Higher z-index to stay on top */
         }
 
         /* Custom row height */
@@ -223,7 +220,7 @@ $(document).ready(function () {
             ],
             eventContent: function (arg) {
                 let slotsAvailableHTML = '';
-    
+
                 // Check if the category is not 2, 3, or 8 to show slots available
                 if (arg.event.extendedProps.category !== '2' && 
                     arg.event.extendedProps.category !== '3' && 
@@ -249,7 +246,7 @@ $(document).ready(function () {
                 // Change the border-top style dynamically based on category
                 const category = info.event.extendedProps.category;
                 const borderColor = getCategoryBorderColor(category);
-                info.el.style.borderTop = borderColor + ' !important';
+                info.el.style.borderTop = `4px solid ${borderColor} !important`;
             },
             eventClick: function (info) {
                 const event = info.event;
@@ -391,12 +388,13 @@ $(document).ready(function () {
     }
 
     function formatTimeToAEST(date) {
-        return new Intl.DateTimeFormat('en-AU', {
+        const options = {
             timeZone: 'Australia/Sydney',
             hour: '2-digit',
             minute: '2-digit',
             hour12: true
-        }).format(date);
+        };
+        return new Intl.DateTimeFormat('en-AU', options).format(date);
     }
 
     function isDateInRange(date, start, end) {
@@ -406,14 +404,22 @@ $(document).ready(function () {
 
     function getCategoryBorderColor(category) {
         switch (category) {
-            case '1': return '#142652!important';
-            case '2': return '#84cdb8!important';
-            case '3': return '#84cdb8!important';
-            case '5': return '#4b6c59!important';
-            case '6': return '#cbe4e0!important';
-            case '7': return '#142652!important';
-            case '8': return '#84cdb8!important';
-            default: return '#142652';
+            case '1':
+                return '#142652';
+            case '2':
+                return '#84cdb8';
+            case '3':
+                return '#84cdb8';
+            case '5':
+                return '#4b6c59';
+            case '6':
+                return '#cbe4e0';
+            case '7':
+                return '#142652';
+            case '8':
+                return '#84cdb8';
+            default:
+                return '#142652'; // Default color
         }
     }
 
