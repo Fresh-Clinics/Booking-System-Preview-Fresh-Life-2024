@@ -1,132 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calendar with Live Events from SimplyBook.me</title>
-
-    <!-- Include FullCalendar Scheduler CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@6.1.15/index.global.min.css" rel="stylesheet" />
-
-    <!-- Include Tippy.js for tooltips -->
-    <link href="https://unpkg.com/tippy.js@6/dist/tippy.css" rel="stylesheet" />
-
-    <!-- Include FullCalendar Scheduler JS -->
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@6.1.15/index.global.min.js"></script>
-
-    <!-- Include jQuery -->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-
-    <!-- Include Tippy.js for tooltips -->
-    <script src="https://unpkg.com/@popperjs/core@2"></script>
-    <script src="https://unpkg.com/tippy.js@6"></script>
-
-    <!-- Include JSON-RPC Client Library for SimplyBook.me -->
-    <script src="json-rpc-client.js"></script>
-
-    <!-- Custom Styles -->
-    <style>
-        body {
-            margin: 40px 10px;
-            padding: 0;
-            font-family: 'Manrope', sans-serif;
-            font-size: 14px;
-            text-align: center;
-        }
-
-        #calendar {
-            max-width: 1100px;
-            margin: 0 auto;
-        }
-
-        .fc-event {
-            background-color: #eae6e3 !important;
-            color: white;
-            border: none;
-        }
-
-        .fc-v-event .fc-event-main {
-            color: #142652 !important;
-        }
-
-        .fc-timegrid-event-harness-inset .fc-timegrid-event {
-            border-top: 4px solid #142652 !important;
-        }
-        
-        .fc-event-content {
-            padding: 5px;
-        }
-        
-        .fc .fc-toolbar-title, .fc .fc-col-header-cell-cushion {
-            color: #0e4333 !important;
-        }
-        
-        .fc .fc-button-primary {
-            background-color: #0e4333 !important;
-            border-color: #0e4333 !important;
-        }
-
-        .tippy-box {
-            background: #eff0ed;
-            color: #142652;
-            max-width: 200px;
-            width: auto;
-            font-size: .8rem;
-            padding: .5em 1em;
-        }
-
-        .tippy-box[data-placement^='top'] > .tippy-arrow::before {
-            border-top-color: #eff0ed;
-        }
-
-        .popup-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-
-        .popup-content {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            max-width: 400px;
-            width: 90%;
-            text-align: center;
-            position: relative;
-        }
-
-        .close-popup {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            cursor: pointer;
-        }
-
-        /* Custom row height */
-        .fc .fc-timegrid-slot {
-            height: 5em; /* Update row height */
-        }
-
-        /* Custom styles for custom-event-display hours */
-        .fc .fc-bg-event {
-            background: #ebf7f4 !important; /* Set custom background color */
-            color: #0e4333 !important; /* Set custom text color */
-            opacity: unset;
-        }
-    </style>
-</head>
-<body>
-
-<div id="calendar"></div>
-
 <script>
 $(document).ready(function () {
     console.log("Initializing SimplyBook Widget with Events...");
@@ -166,7 +37,7 @@ $(document).ready(function () {
                 center: 'title',
                 right: 'next'
             },
-            dayMinWidth: 150, // Set column width
+            dayMinWidth: 150,
             resources: getHardcodedResources(), // Use hardcoded resources
             events: function (info, successCallback, failureCallback) {
                 // Fetch events for the current date range
@@ -175,7 +46,7 @@ $(document).ready(function () {
             height: 'auto',
             slotMinTime: '07:00',
             slotMaxTime: '23:00',
-            resourceOrder: 'order_id', // Order by order_id
+            resourceOrder: 'order_id',
             businessHours: [
                 {
                     daysOfWeek: [2],
@@ -293,9 +164,9 @@ $(document).ready(function () {
                 const eventId = parseInt(event.id);
                 if (timeIntervals) {
                     Object.keys(timeIntervals).forEach(function (date) {
-                        if (timeIntervals[date][eventId] && timeIntervals[date][eventId].length > 0) {
-                            // Extract time intervals for the specific event ID
-                            timeIntervals[date][eventId].forEach(function (interval) {
+                        const intervalsForEvent = timeIntervals[date][eventId];  // Correctly access intervals for eventId
+                        if (intervalsForEvent && intervalsForEvent.length > 0) {
+                            intervalsForEvent.forEach(function (interval) {
                                 const startTime = `${date}T${interval[0]}`; // Combine date and time for start
                                 const endTime = `${date}T${interval[1]}`; // Combine date and time for end
 
@@ -355,6 +226,3 @@ $(document).ready(function () {
     }
 });
 </script>
-
-</body>
-</html>
