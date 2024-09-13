@@ -113,6 +113,8 @@
             position: relative;
             display: flex;
             flex-direction: column; /* Use flex to separate scrollable content and fixed footer */
+            padding: 0px 20px; /* New padding */
+            border-radius: 4px; /* New border-radius */
         }
 
         .popup-content h3 {
@@ -134,6 +136,7 @@
             position: sticky;
             bottom: 0;
             background: white;
+            padding: 15px; /* New padding */
         }
 
         /* Custom row height */
@@ -250,7 +253,7 @@ $(document).ready(function () {
                         <span class="close-popup" onclick="this.parentElement.parentElement.remove()">×</span>
                         <p><strong>${startTime} - ${endTime}</strong></p> <!-- Display start and end time -->
                         <h3>${event.title}</h3> <!-- Changed to h3 -->
-                        <p>${event.extendedProps.description}</p>
+                        <p>${event.extendedProps.description}</p> <!-- Remove empty <p> -->
                         <div class="popup-footer">Bookings open Monday 23rd October at 7:00PM AEST</div> <!-- Fixed text footer -->
                     </div>
                 `;
