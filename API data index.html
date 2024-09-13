@@ -12,11 +12,11 @@
     <!-- Include Tippy.js for tooltips -->
     <link href="https://unpkg.com/tippy.js@6/dist/tippy.css" rel="stylesheet" />
 
-    <!-- Include jQuery -->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-
     <!-- Include FullCalendar Scheduler JS -->
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@6.1.15/index.global.min.js"></script>
+
+    <!-- Include jQuery -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 
     <!-- Include Tippy.js for tooltips -->
     <script src="https://unpkg.com/@popperjs/core@2"></script>
@@ -53,15 +53,15 @@
         .fc-timegrid-event-harness-inset .fc-timegrid-event {
             border-top: 4px solid #142652 !important;
         }
-
+        
         .fc-event-content {
             padding: 5px;
         }
-
+        
         .fc .fc-toolbar-title, .fc .fc-col-header-cell-cushion {
             color: #0e4333 !important;
         }
-
+        
         .fc .fc-button-primary {
             background-color: #0e4333 !important;
             border-color: #0e4333 !important;
@@ -128,7 +128,6 @@
 <div id="calendar"></div>
 
 <script>
-// Make sure jQuery is loaded before using it
 $(document).ready(function () {
     console.log("Initializing SimplyBook Widget with Events...");
 
@@ -167,7 +166,7 @@ $(document).ready(function () {
                 center: 'title',
                 right: 'next'
             },
-            dayMinWidth: 150,
+            dayMinWidth: 150, // Set column width
             resources: getHardcodedResources(), // Use hardcoded resources
             events: function (info, successCallback, failureCallback) {
                 // Fetch events for the current date range
@@ -176,7 +175,7 @@ $(document).ready(function () {
             height: 'auto',
             slotMinTime: '07:00',
             slotMaxTime: '23:00',
-            resourceOrder: 'order_id',
+            resourceOrder: 'order_id', // Order by order_id
             businessHours: [
                 {
                     daysOfWeek: [2],
@@ -197,9 +196,9 @@ $(document).ready(function () {
             eventContent: function (arg) {
                 if (arg.event && arg.event.title) {
                     return {
-                        html: `<div class="fc-event-content">
+                        html: <div class="fc-event-content">
                                   <div class="fc-event-title">${arg.event.title}</div>
-                               </div>`
+                               </div>
                     };
                 } else {
                     return { html: '<div class="fc-event-content"><div class="fc-event-title">Invalid Event</div></div>' };
@@ -207,7 +206,7 @@ $(document).ready(function () {
             },
             eventDidMount: function (info) {
                 tippy(info.el, {
-                    content: `<strong>${info.event.title}</strong><br>${info.event.extendedProps.description}`,
+                    content: <strong>${info.event.title}</strong><br>${info.event.extendedProps.description},
                     allowHTML: true,
                     theme: 'light-border',
                     placement: 'top'
@@ -217,13 +216,13 @@ $(document).ready(function () {
                 const event = info.event;
                 const popup = document.createElement('div');
                 popup.className = 'popup-overlay';
-                popup.innerHTML = `
+                popup.innerHTML = 
                     <div class="popup-content">
                         <span class="close-popup" onclick="this.parentElement.parentElement.remove()">×</span>
                         <h2>${event.title}</h2>
                         <p>${event.extendedProps.description}</p>
                     </div>
-                `;
+                ;
                 document.body.appendChild(popup);
             },
             allDaySlot: false
@@ -254,7 +253,7 @@ $(document).ready(function () {
                 }
 
                 if (Array.isArray(events) && events.length > 0) {
-                    fetchAvailableIntervals(token, events, start, end, callback);
+                    processEvents(events, token, start, end, callback);
                 } else {
                     console.error("No valid events returned. Please check the API response.");
                     callback([]); // Return empty array if no events
@@ -269,7 +268,57 @@ $(document).ready(function () {
         });
     }
 
-    function fetchAvailableIntervals(token, events, from, to, callback) {
+    function processEvents(events, token, start, end, callback) {
+        var calendarEvents = [];
+        var processedCount = 0;
+
+        events.forEach(function (event) {
+            if (event.unit_map && event.id && event.name) {
+                console.log("Processing event:", event); // Log each event to verify its structure
+                const providerId = Object.keys(event.unit_map)[0]; // Get the provider ID from the unit_map
+
+                // Fetch start time dynamically using getStartTimeMatrix
+                fetchEventStartTime(token, event.id, providerId, start, end, function (startTime) {
+                    if (startTime && isDateInRange(startTime, start, end)) { // Check if start time is within the active date range
+                        // Fetch end time dynamically using calculateEndTime
+                        fetchEventEndTime(token, startTime, event.id, providerId, function (endTime) {
+                            if (endTime) {
+                                // Push the event into the calendarEvents array
+                                calendarEvents.push({
+                                    id: event.id,
+                                    title: event.name,
+                                    start: startTime,
+                                    end: endTime,
+                                    resourceId: providerId,
+                                    description: event.description || '',
+                                    category: event.categories[0] // Get the first category
+                                });
+                            }
+
+                            // Check if all events are processed
+                            processedCount++;
+                            if (processedCount === events.length) {
+                                callback(calendarEvents); // Callback with all processed events
+                            }
+                        });
+                    } else {
+                        processedCount++;
+                        if (processedCount === events.length) {
+                            callback(calendarEvents); // Callback with all processed events
+                        }
+                    }
+                });
+            } else {
+                console.warn("Event missing required data or incorrect format:", event);
+                processedCount++;
+                if (processedCount === events.length) {
+                    callback(calendarEvents); // Callback with all processed events
+                }
+            }
+        });
+    }
+
+    function fetchEventStartTime(token, eventId, unitId, from, to, callback) {
         var client = new JSONRpcClient({
             'url': 'https://user-api.simplybook.me',
             'headers': {
@@ -281,47 +330,52 @@ $(document).ready(function () {
             }
         });
 
-        // Prepare to fetch available time intervals for all event IDs in the provided range
-        var eventIds = events.map(event => parseInt(event.id));  // Convert event IDs to integers
-        console.log("Fetching available time intervals for events:", eventIds);
-
-        // Fetch available time intervals for the given date range and all event IDs
-        client.request('getServiceAvailableTimeIntervals', [from, to, eventIds, null, 1], function (timeIntervals) {
-            console.log("Fetched available time intervals:", timeIntervals);
-
-            var calendarEvents = [];
-            events.forEach(function (event) {
-                const eventId = parseInt(event.id);
-                if (timeIntervals) {
-                    Object.keys(timeIntervals).forEach(function (date) {
-                        const intervalsForEvent = timeIntervals[date][eventId];  // Correctly access intervals for eventId
-                        if (intervalsForEvent && intervalsForEvent.length > 0) {
-                            intervalsForEvent.forEach(function (interval) {
-                                const startTime = `${date}T${interval[0]}`; // Combine date and time for start
-                                const endTime = `${date}T${interval[1]}`; // Combine date and time for end
-
-                                // Create a new event for each available time interval
-                                calendarEvents.push({
-                                    id: `${eventId}-${startTime}`,  // Unique ID for each event instance
-                                    title: event.name,
-                                    start: startTime,
-                                    end: endTime,
-                                    resourceId: event.providers[0], // Use the first provider as resource ID
-                                    description: event.description || '',
-                                    category: event.categories[0] // Get the first category
-                                });
-                            });
-                        } else {
-                            console.warn(`No available time intervals for event ID ${eventId} on date ${date}.`);
-                        }
-                    });
-                }
-            });
-            callback(calendarEvents); // Callback with all processed events
+        client.request('getStartTimeMatrix', [from, from, eventId, [unitId], 1, null, []], function (timeMatrix) {
+            console.log("Fetched start times for event:", timeMatrix);
+            if (timeMatrix && Object.keys(timeMatrix).length > 0) {
+                const firstDate = Object.keys(timeMatrix)[0]; // Get the first available date
+                const startTime = timeMatrix[firstDate][0];   // Get the first available time
+                const fullStartTime = ${firstDate}T${startTime}; // Combine to full ISO date-time string
+                callback(fullStartTime);
+            } else {
+                console.error("No start time available for the given parameters.");
+                callback(null);
+            }
         }, function (error) {
-            console.error("Error fetching available time intervals:", error);
-            callback([]);
+            console.error("Error fetching start times:", error);
+            callback(null);
         });
+    }
+
+    function fetchEventEndTime(token, startDateTime, eventId, unitId, callback) {
+        var client = new JSONRpcClient({
+            'url': 'https://user-api.simplybook.me',
+            'headers': {
+                'X-Company-Login': 'thefreshlifeconference',
+                'X-Token': token
+            },
+            'onerror': function (error) {
+                console.error("Error in JSON-RPC client setup:", error);
+            }
+        });
+
+        client.request('calculateEndTime', [startDateTime, eventId, unitId, []], function (endTime) {
+            console.log("Fetched end time for event:", endTime);
+            if (endTime) {
+                callback(endTime);
+            } else {
+                console.error("No end time available for the given parameters.");
+                callback(null);
+            }
+        }, function (error) {
+            console.error("Error fetching end time:", error);
+            callback(null);
+        });
+    }
+
+    function isDateInRange(date, start, end) {
+        const dateObj = new Date(date);
+        return dateObj >= new Date(start) && dateObj <= new Date(end); // Check if date is within the range
     }
 
     function getHardcodedResources() {
@@ -345,13 +399,15 @@ $(document).ready(function () {
             { id: '12', title: 'Xytide', category: 'Training Suites', order_id: 'q' },
             { id: '15', title: 'Fresh Clinics | Room 1', category: 'Training Suites', order_id: 'r' },
             { id: '27', title: 'Fresh Clinics | Room 2', category: 'Training Suites', order_id: 's' },
-            { id: '20', title: 'Venus Concept', category: 'Activations Hub', order_id: 't' },
-            { id: '17', title: 'Alma', category: 'Activations Hub', order_id: 'u' },
-            { id: '19', title: 'Advanced Skin Technology', category: 'Activations Hub', order_id: 'v' },
-            { id: '22', title: 'Fresh Tech Hub', category: 'Activations Hub', order_id: 'w' },
-            { id: '18', title: 'The Skincare Company', category: 'Activations Hub', order_id: 'x' },
-            { id: '21', title: 'Wellness Sessions', category: 'Wellness & Spa', order_id: 'y' },
-            { id: '16', title: 'The Fresh Spa', category: 'Wellness & Spa', order_id: 'z' }
+                        { id: '28', title: 'Laser & Skin Training', category: 'Training Suites', order_id: 't' },
+
+            { id: '20', title: 'Venus Concept', category: 'Activations Hub', order_id: 'u' },
+            { id: '17', title: 'Alma', category: 'Activations Hub', order_id: 'v' },
+            { id: '19', title: 'Advanced Skin Technology', category: 'Activations Hub', order_id: 'w' },
+            { id: '22', title: 'Fresh Tech Hub', category: 'Activations Hub', order_id: 'x' },
+            { id: '18', title: 'The Skincare Company', category: 'Activations Hub', order_id: 'y' },
+            { id: '21', title: 'Wellness Sessions', category: 'Wellness & Spa', order_id: 'z' },
+            { id: '16', title: 'The Fresh Spa', category: 'Wellness & Spa', order_id: 'zz' }
         ];
     }
 });
