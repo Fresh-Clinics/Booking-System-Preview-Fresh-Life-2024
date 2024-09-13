@@ -44,6 +44,7 @@
             background-color: #eae6e3 !important;
             color: white;
             border: none;
+            position: relative; /* Position relative for positioning slots */
         }
 
         .fc-v-event .fc-event-main {
@@ -56,13 +57,14 @@
         
         .fc-event-content {
             padding: 5px;
-            position: relative;
+            position: relative; /* Make the container relative for absolute positioning */
         }
-        
+
         .fc-event-slots {
             font-size: 10px;
+            font-weight: normal; /* Unbold the font */
             position: absolute;
-            bottom: 2px;
+            bottom: 5px;
             right: 5px;
         }
         
@@ -106,20 +108,19 @@
             padding: 20px;
             border-radius: 8px;
             max-width: 400px;
-            max-height: 90%;
             width: 90%;
             text-align: center;
             position: relative;
-            overflow-y: auto; /* Enable scrolling */
+            max-height: 90%; /* Add max-height */
+            overflow-y: auto; /* Make content scrollable */
         }
 
-        .popup-footer {
-            position: fixed;
-            bottom: 20px;
-            width: 90%;
-            background: white;
-            padding: 10px;
-            font-size: 12px;
+        .popup-fixed-bottom {
+            position: absolute;
+            bottom: 10px; /* Fixed position for bottom text */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
         }
 
         .close-popup {
@@ -174,14 +175,7 @@ $(document).ready(function () {
     }
 
     function renderCalendarWithEvents(token) {
-        console.log("Rendering Calendar with token: ", token);
         var calendarEl = document.getElementById('calendar');
-        
-        if (!calendarEl) {
-            console.error("Calendar element not found.");
-            return;
-        }
-
         var calendar = new FullCalendar.Calendar(calendarEl, {
             schedulerLicenseKey: 'CC-Attribution-NonCommercial-NoDerivatives',
             initialView: 'resourceTimeGridDay',
@@ -192,16 +186,16 @@ $(document).ready(function () {
                 center: 'title',
                 right: 'next'
             },
-            dayMinWidth: 150,
-            resources: getHardcodedResources(),
+            dayMinWidth: 150, // Set column width
+            resources: getHardcodedResources(), // Use hardcoded resources
             events: function (info, successCallback, failureCallback) {
-                console.log("Fetching events for range: ", info.startStr, " to ", info.endStr);
+                // Fetch events for the current date range
                 fetchEventsForRange(token, info.startStr, info.endStr, successCallback);
             },
             height: 'auto',
             slotMinTime: '07:00',
             slotMaxTime: '23:00',
-            resourceOrder: 'order_id',
+            resourceOrder: 'order_id', // Order by order_id
             businessHours: [
                 {
                     daysOfWeek: [2],
@@ -241,20 +235,23 @@ $(document).ready(function () {
             },
             eventClick: function (info) {
                 const event = info.event;
-                fetchProductsForEvent(event.id, function (products) {
-                    const productDetails = products.map(product => `<li>${product.name}</li>`).join('');
-                    const productSection = products.length > 0 ? `<ul><strong>Products:</strong>${productDetails}</ul>` : '<p>No products available.</p>';
+                const startTime = formatTimeToAEST(event.start);
+                const endTime = formatTimeToAEST(event.end);
+                
+                fetchProductsForEvent(token, event.id, function (products) {
+                    const productItems = products.map(product => `<li>${product.name}</li>`).join('');
+                    const productList = products.length > 0 ? `<ul>${productItems}</ul>` : '<p>No products linked to this event.</p>';
                     
                     const popup = document.createElement('div');
                     popup.className = 'popup-overlay';
                     popup.innerHTML = `
                         <div class="popup-content">
                             <span class="close-popup" onclick="this.parentElement.parentElement.remove()">×</span>
-                            <p><strong>${formatTimeToAEST(new Date(event.start))} - ${formatTimeToAEST(new Date(event.end))}</strong></p>
-                            <h3>${event.title}</h3> <!-- Changed to h3 -->
+                            <p><strong>${startTime} - ${endTime}</strong></p>
+                            <h3>${event.title}</h3>
                             <p>${event.extendedProps.description}</p>
-                            ${productSection}
-                            <div class="popup-footer">Bookings open Monday 23rd October at 7:00PM AEST</div>
+                            ${productList}
+                            <div class="popup-fixed-bottom"><strong>Bookings open Monday 23rd October at 7:00PM AEST</strong></div>
                         </div>
                     `;
                     document.body.appendChild(popup);
@@ -264,6 +261,27 @@ $(document).ready(function () {
         });
 
         calendar.render();
+    }
+
+    function fetchProductsForEvent(token, eventId, callback) {
+        var client = new JSONRpcClient({
+            'url': 'https://user-api.simplybook.me',
+            'headers': {
+                'X-Company-Login': 'thefreshlifeconference',
+                'X-Token': token
+            },
+            'onerror': function (error) {
+                console.error("Error in JSON-RPC client setup:", error);
+            }
+        });
+
+        client.request('getProductList', [{ service_id: eventId }], function (products) {
+            console.log("Fetched products for event:", products);
+            callback(products);
+        }, function (error) {
+            console.error("Error fetching products:", error);
+            callback([]); // Return empty array on error
+        });
     }
 
     function fetchEventsForRange(token, start, end, callback) {
@@ -315,28 +333,26 @@ $(document).ready(function () {
                 // Fetch start time dynamically using getStartTimeMatrix
                 fetchEventStartTime(token, event.id, providerId, start, end, function (startTime) {
                     if (startTime && isDateInRange(startTime, start, end)) { // Check if start time is within the active date range
-                        // Fetch end time dynamically using calculateEndTime
-                        fetchEventEndTime(token, startTime, event.id, providerId, function (endTime) {
-                            if (endTime) {
-                                // Push the event into the calendarEvents array
-                                calendarEvents.push({
-                                    id: event.id,
-                                    title: event.name,
-                                    start: startTime,
-                                    end: endTime,
-                                    resourceId: providerId,
-                                    description: event.description || '',
-                                    bookings_limit: event.bookings_limit || 'N/A', // Add bookings limit to extended props
-                                    category: event.categories[0] // Get the first category
-                                });
-                            }
+                        // Calculate end time by adding duration (in minutes) to start time
+                        const duration = parseInt(event.duration) || 0; // Event duration in minutes
+                        const endTime = new Date(new Date(startTime).getTime() + duration * 60000); // Add duration to start time
 
-                            // Check if all events are processed
-                            processedCount++;
-                            if (processedCount === events.length) {
-                                callback(calendarEvents); // Callback with all processed events
-                            }
+                        // Push the event into the calendarEvents array
+                        calendarEvents.push({
+                            id: event.id,
+                            title: event.name,
+                            start: startTime,
+                            end: endTime,
+                            resourceId: providerId,
+                            description: event.description || '',
+                            bookings_limit: event.bookings_limit || '0', // Include bookings limit
+                            category: event.categories[0] // Get the first category
                         });
+
+                        processedCount++;
+                        if (processedCount === events.length) {
+                            callback(calendarEvents); // Callback with all processed events
+                        }
                     } else {
                         processedCount++;
                         if (processedCount === events.length) {
@@ -383,61 +399,14 @@ $(document).ready(function () {
         });
     }
 
-    function fetchEventEndTime(token, startDateTime, eventId, unitId, callback) {
-        var client = new JSONRpcClient({
-            'url': 'https://user-api.simplybook.me',
-            'headers': {
-                'X-Company-Login': 'thefreshlifeconference',
-                'X-Token': token
-            },
-            'onerror': function (error) {
-                console.error("Error in JSON-RPC client setup:", error);
-            }
-        });
-
-        client.request('calculateEndTime', [startDateTime, eventId, unitId, []], function (endTime) {
-            console.log("Fetched end time for event:", endTime);
-            if (endTime) {
-                callback(endTime);
-            } else {
-                console.error("No end time available for the given parameters.");
-                callback(null);
-            }
-        }, function (error) {
-            console.error("Error fetching end time:", error);
-            callback(null);
-        });
-    }
-
-    function fetchProductsForEvent(serviceId, callback) {
-        var client = new JSONRpcClient({
-            'url': 'https://user-api.simplybook.me',
-            'headers': {
-                'X-Company-Login': 'thefreshlifeconference',
-                'X-Token': token
-            },
-            'onerror': function (error) {
-                console.error("Error in JSON-RPC client setup:", error);
-            }
-        });
-
-        client.request('getProductList', [{ service_id: serviceId }], function (products) {
-            console.log("Fetched products for event:", serviceId, products);
-            callback(products);
-        }, function (error) {
-            console.error("Error fetching products:", error);
-            callback([]);
-        });
+    function formatTimeToAEST(dateTime) {
+        const options = { timeZone: 'Australia/Sydney', hour: '2-digit', minute: '2-digit', hour12: true };
+        return new Intl.DateTimeFormat('en-AU', options).format(new Date(dateTime));
     }
 
     function isDateInRange(date, start, end) {
         const dateObj = new Date(date);
         return dateObj >= new Date(start) && dateObj <= new Date(end); // Check if date is within the range
-    }
-
-    function formatTimeToAEST(date) {
-        // Adjust to AEST time zone
-        return date.toLocaleTimeString('en-AU', { timeZone: 'Australia/Sydney', hour: '2-digit', minute: '2-digit' });
     }
 
     function getHardcodedResources() {
