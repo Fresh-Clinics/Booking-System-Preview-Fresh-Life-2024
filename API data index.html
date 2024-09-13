@@ -277,35 +277,30 @@ $(document).ready(function () {
                 console.log("Processing event:", event); // Log each event to verify its structure
                 const providerId = Object.keys(event.unit_map)[0]; // Get the provider ID from the unit_map
 
-                // Fetch start time dynamically using getStartTimeMatrix
-                fetchEventStartTime(token, event.id, providerId, start, end, function (startTime) {
-                    if (startTime && isDateInRange(startTime, start, end)) { // Check if start time is within the active date range
-                        // Fetch end time dynamically using calculateEndTime
-                        fetchEventEndTime(token, startTime, event.id, providerId, function (endTime) {
-                            if (endTime) {
-                                // Push the event into the calendarEvents array
-                                calendarEvents.push({
-                                    id: event.id,
-                                    title: event.name,
-                                    start: startTime,
-                                    end: endTime,
-                                    resourceId: providerId,
-                                    description: event.description || '',
-                                    category: event.categories[0] // Get the first category
-                                });
-                            }
+                // Fetch available intervals dynamically using getServiceAvailableTimeIntervals
+                fetchEventAvailableIntervals(token, event.id, providerId, start, end, event.duration, function (intervals) {
+                    if (intervals && intervals.length > 0) {
+                        intervals.forEach(function (interval) {
+                            const startTime = interval[0];
+                            const endTime = calculateEndTime(startTime, event.duration);
 
-                            // Check if all events are processed
-                            processedCount++;
-                            if (processedCount === events.length) {
-                                callback(calendarEvents); // Callback with all processed events
-                            }
+                            // Push each interval as a separate event
+                            calendarEvents.push({
+                                id: event.id,
+                                title: event.name,
+                                start: startTime,
+                                end: endTime,
+                                resourceId: providerId,
+                                description: event.description || '',
+                                category: event.categories[0] // Get the first category
+                            });
                         });
-                    } else {
-                        processedCount++;
-                        if (processedCount === events.length) {
-                            callback(calendarEvents); // Callback with all processed events
-                        }
+                    }
+
+                    // Check if all events are processed
+                    processedCount++;
+                    if (processedCount === events.length) {
+                        callback(calendarEvents); // Callback with all processed events
                     }
                 });
             } else {
@@ -318,7 +313,7 @@ $(document).ready(function () {
         });
     }
 
-    function fetchEventStartTime(token, eventId, unitId, from, to, callback) {
+    function fetchEventAvailableIntervals(token, eventId, unitId, from, to, duration, callback) {
         var client = new JSONRpcClient({
             'url': 'https://user-api.simplybook.me',
             'headers': {
@@ -330,47 +325,32 @@ $(document).ready(function () {
             }
         });
 
-        client.request('getStartTimeMatrix', [from, from, eventId, [unitId], 1, null, []], function (timeMatrix) {
-            console.log("Fetched start times for event:", timeMatrix);
-            if (timeMatrix && Object.keys(timeMatrix).length > 0) {
-                const firstDate = Object.keys(timeMatrix)[0]; // Get the first available date
-                const startTime = timeMatrix[firstDate][0];   // Get the first available time
-                const fullStartTime = `${firstDate}T${startTime}`; // Combine to full ISO date-time string
-                callback(fullStartTime);
-            } else {
-                console.error("No start time available for the given parameters.");
-                callback(null);
+        // Fetch available time intervals for the event
+        client.request('getServiceAvailableTimeIntervals', [from, to, eventId, unitId, 1], function (timeIntervals) {
+            console.log("Fetched available time intervals for event:", timeIntervals);
+            const intervals = [];
+
+            if (timeIntervals) {
+                Object.keys(timeIntervals).forEach(function (date) {
+                    if (timeIntervals[date][unitId]) {
+                        timeIntervals[date][unitId].forEach(function (interval) {
+                            const startTime = `${date}T${interval[0]}`; // Combine date and time
+                            intervals.push([startTime]); // Add to intervals list
+                        });
+                    }
+                });
             }
+            callback(intervals);
         }, function (error) {
-            console.error("Error fetching start times:", error);
-            callback(null);
+            console.error("Error fetching available time intervals:", error);
+            callback([]);
         });
     }
 
-    function fetchEventEndTime(token, startDateTime, eventId, unitId, callback) {
-        var client = new JSONRpcClient({
-            'url': 'https://user-api.simplybook.me',
-            'headers': {
-                'X-Company-Login': 'thefreshlifeconference',
-                'X-Token': token
-            },
-            'onerror': function (error) {
-                console.error("Error in JSON-RPC client setup:", error);
-            }
-        });
-
-        client.request('calculateEndTime', [startDateTime, eventId, unitId, []], function (endTime) {
-            console.log("Fetched end time for event:", endTime);
-            if (endTime) {
-                callback(endTime);
-            } else {
-                console.error("No end time available for the given parameters.");
-                callback(null);
-            }
-        }, function (error) {
-            console.error("Error fetching end time:", error);
-            callback(null);
-        });
+    function calculateEndTime(startTime, duration) {
+        const start = new Date(startTime);
+        start.setMinutes(start.getMinutes() + parseInt(duration)); // Add duration in minutes to start time
+        return start.toISOString();
     }
 
     function isDateInRange(date, start, end) {
