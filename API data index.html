@@ -1,145 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calendar with Live Events from SimplyBook.me</title>
-
-    <!-- Include FullCalendar Scheduler CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@6.1.15/index.global.min.css" rel="stylesheet" />
-
-    <!-- Include Tippy.js for tooltips -->
-    <link href="https://unpkg.com/tippy.js@6/dist/tippy.css" rel="stylesheet" />
-
-    <!-- Include FullCalendar Scheduler JS -->
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@6.1.15/index.global.min.js"></script>
-
-    <!-- Include jQuery -->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-
-    <!-- Include Tippy.js for tooltips -->
-    <script src="https://unpkg.com/@popperjs/core@2"></script>
-    <script src="https://unpkg.com/tippy.js@6"></script>
-
-    <!-- Include JSON-RPC Client Library for SimplyBook.me -->
-    <script src="json-rpc-client.js"></script>
-
-    <!-- Custom Styles -->
-    <style>
-        body {
-            margin: 40px 10px;
-            padding: 0;
-            font-family: 'Manrope', sans-serif;
-            font-size: 14px;
-            text-align: center;
-        }
-
-        #calendar {
-            max-width: 1100px;
-            margin: 0 auto;
-        }
-
-        .fc-event {
-            background-color: #eae6e3 !important;
-            color: white;
-            border: none;
-        }
-
-        .fc-v-event .fc-event-main {
-            color: #142652 !important;
-        }
-
-        .fc-timegrid-event-harness-inset .fc-timegrid-event {
-            border-top: 4px solid #142652 !important;
-        }
-        
-        .fc-event-content {
-            padding: 5px;
-        }
-        
-        .fc .fc-toolbar-title, .fc .fc-col-header-cell-cushion {
-            color: #0e4333 !important;
-        }
-        
-        .fc .fc-button-primary {
-            background-color: #0e4333 !important;
-            border-color: #0e4333 !important;
-        }
-
-        .fc-event-slots {
-            font-weight: normal;
-            font-size: 10px;
-        }
-
-        .tippy-box {
-            background: #eff0ed;
-            color: #142652;
-            max-width: 200px;
-            width: auto;
-            font-size: .8rem;
-            padding: .5em 1em;
-        }
-
-        .tippy-box[data-placement^='top'] > .tippy-arrow::before {
-            border-top-color: #eff0ed;
-        }
-
-        .popup-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-
-        .popup-content {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            max-width: 400px;
-            width: 90%;
-            max-height: 90%;
-            text-align: center;
-            position: relative;
-            overflow-y: auto; /* Make content scrollable if needed */
-        }
-
-        .popup-footer {
-            position: relative;
-            margin-top: 10px;
-            font-weight: bold;
-        }
-
-        .close-popup {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            cursor: pointer;
-        }
-
-        /* Custom row height */
-        .fc .fc-timegrid-slot {
-            height: 5em; /* Update row height */
-        }
-
-        /* Custom styles for custom-event-display hours */
-        .fc .fc-bg-event {
-            background: #ebf7f4 !important; /* Set custom background color */
-            color: #0e4333 !important; /* Set custom text color */
-            opacity: unset;
-        }
-    </style>
-</head>
-<body>
-
-<div id="calendar"></div>
-
 <script>
 $(document).ready(function () {
     console.log("Initializing SimplyBook Widget with Events...");
@@ -275,7 +133,7 @@ $(document).ready(function () {
                 }
 
                 if (Array.isArray(events) && events.length > 0) {
-                    processEvents(events, token, start, end, callback);
+                    processEvents(events, token, start, end, callback); // Call the missing function here
                 } else {
                     console.error("No valid events returned. Please check the API response.");
                     callback([]); // Return empty array if no events
@@ -290,7 +148,58 @@ $(document).ready(function () {
         });
     }
 
-    // Include the rest of the necessary functions here...
+    function processEvents(events, token, start, end, callback) {
+        var calendarEvents = [];
+        var processedCount = 0;
+
+        events.forEach(function (event) {
+            if (event.unit_map && event.id && event.name) {
+                console.log("Processing event:", event); // Log each event to verify its structure
+                const providerId = Object.keys(event.unit_map)[0]; // Get the provider ID from the unit_map
+
+                // Fetch start time dynamically using getStartTimeMatrix
+                fetchEventStartTime(token, event.id, providerId, start, end, function (startTime) {
+                    if (startTime && isDateInRange(startTime, start, end)) { // Check if start time is within the active date range
+                        // Fetch end time dynamically using calculateEndTime
+                        fetchEventEndTime(token, startTime, event.id, providerId, function (endTime) {
+                            if (endTime) {
+                                // Push the event into the calendarEvents array
+                                calendarEvents.push({
+                                    id: event.id,
+                                    title: event.name,
+                                    start: startTime,
+                                    end: endTime,
+                                    resourceId: providerId,
+                                    description: event.description || '',
+                                    bookings_limit: event.bookings_limit, // Include the bookings limit
+                                    category: event.categories[0] // Get the first category
+                                });
+                            }
+
+                            // Check if all events are processed
+                            processedCount++;
+                            if (processedCount === events.length) {
+                                callback(calendarEvents); // Callback with all processed events
+                            }
+                        });
+                    } else {
+                        processedCount++;
+                        if (processedCount === events.length) {
+                            callback(calendarEvents); // Callback with all processed events
+                        }
+                    }
+                });
+            } else {
+                console.warn("Event missing required data or incorrect format:", event);
+                processedCount++;
+                if (processedCount === events.length) {
+                    callback(calendarEvents); // Callback with all processed events
+                }
+            }
+        });
+    }
+
+    // Include other necessary functions like fetchEventStartTime, fetchEventEndTime, fetchProductsForEvent, and formatTimeToAEST here...
 
     // Ensure getHardcodedResources function is defined
     function getHardcodedResources() {
@@ -326,6 +235,3 @@ $(document).ready(function () {
     }
 });
 </script>
-
-</body>
-</html>
