@@ -105,6 +105,8 @@
 
         .popup-content {
             background: white;
+            padding: 0px 20px;
+            border-radius: 4px;
             max-width: 400px;
             width: 90%;
             max-height: 90%; /* Limit height */
@@ -113,8 +115,6 @@
             position: relative;
             display: flex;
             flex-direction: column; /* Use flex to separate scrollable content and fixed footer */
-            padding: 0px 20px; /* New padding */
-            border-radius: 4px; /* New border-radius */
         }
 
         .popup-content h3 {
@@ -122,21 +122,19 @@
         }
 
         .close-popup {
-            position: sticky;
+            position: absolute;
             top: 10px;
             right: 10px;
-            margin-left: auto;
             cursor: pointer;
+            z-index: 10; /* Keep above content */
         }
 
         .popup-footer {
             margin-top: auto; /* Push to the bottom */
+            padding: 15px;
             border-top: 1px solid #ddd; /* Divider line */
             font-size: 0.9rem;
-            position: sticky;
-            bottom: 0;
-            background: white;
-            padding: 15px; /* New padding */
+            background: white; /* Ensure background color for separation */
         }
 
         /* Custom row height */
@@ -244,8 +242,8 @@ $(document).ready(function () {
             },
             eventClick: function (info) {
                 const event = info.event;
-                const startTime = formatTimeToAEST(new Date(event.start));
-                const endTime = formatTimeToAEST(new Date(event.end));
+                const startTime = formatTimeToAEST(event.start); // Use the provided start time in AEST
+                const endTime = formatTimeToAEST(event.end); // Use the provided end time in AEST
                 const popup = document.createElement('div');
                 popup.className = 'popup-overlay';
                 popup.innerHTML = `
@@ -253,7 +251,7 @@ $(document).ready(function () {
                         <span class="close-popup" onclick="this.parentElement.parentElement.remove()">×</span>
                         <p><strong>${startTime} - ${endTime}</strong></p> <!-- Display start and end time -->
                         <h3>${event.title}</h3> <!-- Changed to h3 -->
-                        <p>${event.extendedProps.description}</p> <!-- Remove empty <p> -->
+                        <p>${event.extendedProps.description}</p>
                         <div class="popup-footer">Bookings open Monday 23rd October at 7:00PM AEST</div> <!-- Fixed text footer -->
                     </div>
                 `;
@@ -382,12 +380,13 @@ $(document).ready(function () {
     }
 
     function formatTimeToAEST(date) {
+        // Ensure date is converted to AEST
         return new Intl.DateTimeFormat('en-AU', {
             timeZone: 'Australia/Sydney',
             hour: '2-digit',
             minute: '2-digit',
             hour12: true
-        }).format(date);
+        }).format(new Date(date));
     }
 
     function isDateInRange(date, start, end) {
