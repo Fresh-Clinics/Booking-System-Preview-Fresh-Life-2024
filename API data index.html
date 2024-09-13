@@ -275,7 +275,10 @@ $(document).ready(function () {
         events.forEach(function (event) {
             if (event.unit_map && event.id && event.name) {
                 console.log("Processing event:", event); // Log each event to verify its structure
+
+                // Get the correct provider (unit) ID dynamically
                 const providerId = Object.keys(event.unit_map)[0]; // Get the provider ID from the unit_map
+                console.log("Using provider (unit) ID: ", providerId);
 
                 // Fetch available intervals dynamically using getServiceAvailableTimeIntervals
                 fetchEventAvailableIntervals(token, event.id, providerId, start, end, event.duration, function (intervals) {
@@ -364,7 +367,7 @@ $(document).ready(function () {
 
     function getHardcodedResources() {
         return [
-             { id: '29', title: 'Woodlands Stage', category: 'Program', order_id: 'a' },
+            { id: '29', title: 'Woodlands Stage', category: 'Program', order_id: 'a' },
             { id: '30', title: 'Fresh Lounge', category: 'Program', order_id: 'b' },
             { id: '8', title: 'Merz | Room 1', category: 'Training Suites', order_id: 'c' },
             { id: '23', title: 'Merz | Room 2', category: 'Training Suites', order_id: 'd' },
@@ -383,18 +386,17 @@ $(document).ready(function () {
             { id: '12', title: 'Xytide', category: 'Training Suites', order_id: 'q' },
             { id: '15', title: 'Fresh Clinics | Room 1', category: 'Training Suites', order_id: 'r' },
             { id: '27', title: 'Fresh Clinics | Room 2', category: 'Training Suites', order_id: 's' },
-            { id: '28', title: 'Laser & Skin Training', category: 'Training Suites', order_id: 't' },
-            { id: '20', title: 'Venus Concept', category: 'Activations Hub', order_id: 'u' },
-            { id: '17', title: 'Alma', category: 'Activations Hub', order_id: 'v' },
-            { id: '19', title: 'Advanced Skin Technology', category: 'Activations Hub', order_id: 'w' },
-            { id: '22', title: 'Fresh Tech Hub', category: 'Activations Hub', order_id: 'x' },
-            { id: '18', title: 'The Skincare Company', category: 'Activations Hub', order_id: 'y' },
-            { id: '21', title: 'Wellness Sessions', category: 'Wellness & Spa', order_id: 'z' },
-            { id: '16', title: 'The Fresh Spa', category: 'Wellness & Spa', order_id: 'zz' }
+            { id: '20', title: 'Venus Concept', category: 'Activations Hub', order_id: 't' },
+            { id: '17', title: 'Alma', category: 'Activations Hub', order_id: 'u' },
+            { id: '19', title: 'Advanced Skin Technology', category: 'Activations Hub', order_id: 'v' },
+            { id: '22', title: 'Fresh Tech Hub', category: 'Activations Hub', order_id: 'w' },
+            { id: '18', title: 'The Skincare Company', category: 'Activations Hub', order_id: 'x' },
+            { id: '21', title: 'Wellness Sessions', category: 'Wellness & Spa', order_id: 'y' },
+            { id: '16', title: 'The Fresh Spa', category: 'Wellness & Spa', order_id: 'z' }
         ];
     }
 });
 </script>
 
 </body>
-</html> 
+</html>
