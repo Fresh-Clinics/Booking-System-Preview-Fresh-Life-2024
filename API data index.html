@@ -294,9 +294,10 @@ $(document).ready(function () {
                 if (timeIntervals) {
                     Object.keys(timeIntervals).forEach(function (date) {
                         if (timeIntervals[date][eventId] && timeIntervals[date][eventId].length > 0) {
+                            // Extract time intervals for the specific event ID
                             timeIntervals[date][eventId].forEach(function (interval) {
-                                const startTime = `${date}T${interval[0]}`; // Combine date and time
-                                const endTime = calculateEndTime(startTime, event.duration); // Calculate end time based on duration
+                                const startTime = `${date}T${interval[0]}`; // Combine date and time for start
+                                const endTime = `${date}T${interval[1]}`; // Combine date and time for end
 
                                 // Create a new event for each available time interval
                                 calendarEvents.push({
@@ -320,12 +321,6 @@ $(document).ready(function () {
             console.error("Error fetching available time intervals:", error);
             callback([]);
         });
-    }
-
-    function calculateEndTime(startTime, duration) {
-        const start = new Date(startTime);
-        start.setMinutes(start.getMinutes() + parseInt(duration)); // Add duration in minutes to start time
-        return start.toISOString();
     }
 
     function getHardcodedResources() {
