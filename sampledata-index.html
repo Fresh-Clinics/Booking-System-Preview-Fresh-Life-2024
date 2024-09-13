@@ -38,6 +38,7 @@
         }
 
         .fc-event {
+            background-color: #eae6e3 !important;
             color: #142652;
             border: none;
         }
@@ -114,19 +115,6 @@
             color: #0e4333 !important; /* Set custom text color */
             opacity: unset;
         }
-
-        /* Custom styles for resource headers */
-        .fc-col-header-cell .fc-col-header-cell-cushion {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .resource-image {
-            width: 50px; /* Adjust size as needed */
-            height: 50px; /* Adjust size as needed */
-            margin-bottom: 5px; /* Space between image and title */
-        }
     </style>
 </head>
 <body>
@@ -135,34 +123,34 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // Sample data for resources with image URLs
+        // Sample data for resources
         const resources = [
-            { id: '29', title: 'Woodlands Stage', category: 'Program', order_id: 'a', image: 'https://github.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/blob/main/image-files/Woodlands_Stage.png?raw=true' },
-            { id: '30', title: 'Fresh Lounge', category: 'Program', order_id: 'b', image: 'https://github.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/blob/main/image-files/Fresh_Lounge.png?raw=true' },
-            { id: '8', title: 'Merz | Room 1', category: 'Training Suites', order_id: 'c', image: 'https://github.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/blob/main/image-files/Merz_Room_1.png?raw=true' },
-            { id: '23', title: 'Merz | Room 2', category: 'Training Suites', order_id: 'd', image: 'https://github.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/blob/main/image-files/Merz_Room_2.png?raw=true' },
-            { id: '2', title: 'Galderma | Room 1', category: 'Training Suites', order_id: 'e', image: 'https://github.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/blob/main/image-files/Galderma_Room_1.png?raw=true' },
-            { id: '24', title: 'Galderma | Room 2', category: 'Training Suites', order_id: 'f', image: 'https://github.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/blob/main/image-files/Galderma_Room_2.png?raw=true' },
-            { id: '3', title: 'Allergan', category: 'Training Suites', order_id: 'g', image: 'https://github.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/blob/main/image-files/Allergan.png?raw=true' },
-            { id: '4', title: 'Evolus', category: 'Training Suites', order_id: 'h', image: 'https://github.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/blob/main/image-files/Evolus.png?raw=true' },
-            { id: '7', title: 'Candela', category: 'Training Suites', order_id: 'i', image: 'https://github.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/blob/main/image-files/Candela.png?raw=true' },
-            { id: '14', title: 'Cryomed', category: 'Training Suites', order_id: 'j', image: 'https://github.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/blob/main/image-files/Cryomed.png?raw=true' },
-            { id: '13', title: 'Dermocosmetica | Room 1', category: 'Training Suites', order_id: 'k', image: 'https://github.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/blob/main/image-files/Dermocosmetica_Room_1.png?raw=true' },
-            { id: '25', title: 'Dermocosmetica | Room 2', category: 'Training Suites', order_id: 'l', image: 'https://github.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/blob/main/image-files/Dermocosmetica_Room_2.png?raw=true' },
-            { id: '9', title: 'EnVogue', category: 'Training Suites', order_id: 'm', image: 'https://github.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/blob/main/image-files/EnVogue.png?raw=true' },
-            { id: '10', title: 'Hugel', category: 'Training Suites', order_id: 'n', image: 'https://github.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/blob/main/image-files/Hugel.png?raw=true' },
-            { id: '26', title: 'Rejuran', category: 'Training Suites', order_id: 'o', image: 'https://github.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/blob/main/image-files/Rejuran.png?raw=true' },
-            { id: '11', title: 'Teoxane', category: 'Training Suites', order_id: 'p', image: 'https://github.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/blob/main/image-files/Teoxane.png?raw=true' },
-            { id: '12', title: 'Xytide', category: 'Training Suites', order_id: 'q', image: 'https://github.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/blob/main/image-files/Xytide.png?raw=true' },
-            { id: '15', title: 'Fresh Clinics | Room 1', category: 'Training Suites', order_id: 'r', image: 'https://github.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/blob/main/image-files/Fresh_Clinics_Room_1.png?raw=true' },
-            { id: '27', title: 'Fresh Clinics | Room 2', category: 'Training Suites', order_id: 's', image: 'https://github.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/blob/main/image-files/Fresh_Clinics_Room_2.png?raw=true' },
-            { id: '20', title: 'Venus Concept', category: 'Activations Hub', order_id: 't', image: 'https://github.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/blob/main/image-files/Venus_Concept.png?raw=true' },
-            { id: '17', title: 'Alma', category: 'Activations Hub', order_id: 'u', image: 'https://github.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/blob/main/image-files/Alma.png?raw=true' },
-            { id: '19', title: 'Advanced Skin Technology', category: 'Activations Hub', order_id: 'v', image: 'https://github.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/blob/main/image-files/Advanced_Skin_Technology.png?raw=true' },
-            { id: '22', title: 'Fresh Tech Hub', category: 'Activations Hub', order_id: 'w', image: 'https://github.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/blob/main/image-files/Fresh_Tech_Hub.png?raw=true' },
-            { id: '18', title: 'The Skincare Company', category: 'Activations Hub', order_id: 'x', image: 'https://github.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/blob/main/image-files/The_Skincare_Company.png?raw=true' },
-            { id: '21', title: 'Wellness Sessions', category: 'Wellness & Spa', order_id: 'y', image: 'https://github.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/blob/main/image-files/Wellness_Sessions.png?raw=true' },
-            { id: '16', title: 'The Fresh Spa', category: 'Wellness & Spa', order_id: 'z', image: 'https://github.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/blob/main/image-files/The_Fresh_Spa.png?raw=true' }
+            { id: '29', title: 'Woodlands Stage', category: 'Program', order_id: 'a' },
+            { id: '30', title: 'Fresh Lounge', category: 'Program', order_id: 'b' },
+            { id: '8', title: 'Merz | Room 1', category: 'Training Suites', order_id: 'c' },
+            { id: '23', title: 'Merz | Room 2', category: 'Training Suites', order_id: 'd' },
+            { id: '2', title: 'Galderma | Room 1', category: 'Training Suites', order_id: 'e' },
+            { id: '24', title: 'Galderma | Room 2', category: 'Training Suites', order_id: 'f' },
+            { id: '3', title: 'Allergan', category: 'Training Suites', order_id: 'g' },
+            { id: '4', title: 'Evolus', category: 'Training Suites', order_id: 'h' },
+            { id: '7', title: 'Candela', category: 'Training Suites', order_id: 'i' },
+            { id: '14', title: 'Cryomed', category: 'Training Suites', order_id: 'j' },
+            { id: '13', title: 'Dermocosmetica | Room 1', category: 'Training Suites', order_id: 'k' },
+            { id: '25', title: 'Dermocosmetica | Room 2', category: 'Training Suites', order_id: 'l' },
+            { id: '9', title: 'EnVogue', category: 'Training Suites', order_id: 'm' },
+            { id: '10', title: 'Hugel', category: 'Training Suites', order_id: 'n' },
+            { id: '26', title: 'Rejuran', category: 'Training Suites', order_id: 'o' },
+            { id: '11', title: 'Teoxane', category: 'Training Suites', order_id: 'p' },
+            { id: '12', title: 'Xytide', category: 'Training Suites', order_id: 'q' },
+            { id: '15', title: 'Fresh Clinics | Room 1', category: 'Training Suites', order_id: 'r' },
+            { id: '27', title: 'Fresh Clinics | Room 2', category: 'Training Suites', order_id: 's' },
+            { id: '20', title: 'Venus Concept', category: 'Activations Hub', order_id: 't' },
+            { id: '17', title: 'Alma', category: 'Activations Hub', order_id: 'u' },
+            { id: '19', title: 'Advanced Skin Technology', category: 'Activations Hub', order_id: 'v' },
+            { id: '22', title: 'Fresh Tech Hub', category: 'Activations Hub', order_id: 'w' },
+            { id: '18', title: 'The Skincare Company', category: 'Activations Hub', order_id: 'x' },
+            { id: '21', title: 'Wellness Sessions', category: 'Wellness & Spa', order_id: 'y' },
+            { id: '16', title: 'The Fresh Spa', category: 'Wellness & Spa', order_id: 'z' }
         ];
 
         // Sort resources by order_id
@@ -177,8 +165,7 @@
                 description: 'Test event description goes here',
                 start: '2024-10-29T14:00:00',
                 end: '2024-10-29T15:00:00',
-                resourceId: '4',
-                categories: ['2'] // Example category
+                resourceId: '4'
             },
             {
                 id: '2',
@@ -186,8 +173,7 @@
                 description: 'Test 2 event description goes here',
                 start: '2024-10-29T14:00:00',
                 end: '2024-10-29T15:00:00',
-                resourceId: '5',
-                categories: ['2']
+                resourceId: '5'
             },
             {
                 id: '3',
@@ -195,8 +181,7 @@
                 description: 'Test 3 event description goes here',
                 start: '2024-10-29T15:00:00',
                 end: '2024-10-29T15:30:00',
-                resourceId: '4',
-                categories: ['1']
+                resourceId: '4'
             },
             // Create separate background events for each resource
             ...resources.flatMap(resource => [
@@ -291,9 +276,9 @@
                     display: 'background'
                 },
                 {
-                    id: `bg-event-${resource.id}-11`,
+                    id: `bg-event-${resource.id}-10`,
                     title: ' ',
-                    description: '<b>Fright Night Finale</b><br>(Ticketed Event)<br>Brought to you by Fresh Clinics<br><br>Pool Area<br><br><b><a style="color:#84cdb8" href="https://events.humanitix.com/the-fresh-life-2024#group1">Buy ticket</a>',
+                    description: '<b>Fright Night Finale</b><br>(Ticketed Event)<br>Brought to you by Fresh Clinics<br><br>Pool Area',
                     start: '2024-10-31T18:00:00',
                     end: '2024-10-31T22:30:00',
                     resourceId: resource.id,
@@ -330,22 +315,54 @@
                 {
                     daysOfWeek: [3],
                     startTime: '07:30',
+                    endTime: '11:30'
+                },
+                {
+                    daysOfWeek: [3],
+                    startTime: '12:00',
+                    endTime: '13:30'
+                },
+                {
+                    daysOfWeek: [3],
+                    startTime: '14:30',
+                    endTime: '16:00'
+                },
+                {
+                    daysOfWeek: [3],
+                    startTime: '16:30',
+                    endTime: '17:30'
+                },
+                {
+                    daysOfWeek: [3],
+                    startTime: '18:30',
                     endTime: '19:00'
                 },
                 {
                     daysOfWeek: [4],
                     startTime: '07:00',
+                    endTime: '11:00'
+                },
+                {
+                    daysOfWeek: [4],
+                    startTime: '11:30',
+                    endTime: '13:30'
+                },
+                {
+                    daysOfWeek: [4],
+                    startTime: '14:30',
+                    endTime: '16:00'
+                },
+                {
+                    daysOfWeek: [4],
+                    startTime: '16:30',
                     endTime: '22:30'
                 }
             ],
             eventClassNames: function (arg) {
-                const categoryColors = {
-                    '1': '#84cdb8',
-                    '2': '#142652',
-                    '3': '#0e4333',
-                    '4': '#eae6e3'
-                };
-                return ['fc-event', `fc-event-category-${arg.event.extendedProps.categories[0]}`];
+                if (arg.event.extendedProps.display === 'custom-event-display') {
+                    return ['custom-event-display']; // Add custom class
+                }
+                return [];
             },
             eventContent: function (arg) {
                 if (arg.event && arg.event.title) {
