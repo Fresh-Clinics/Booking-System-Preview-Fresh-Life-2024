@@ -52,7 +52,7 @@
         }
 
         .fc-timegrid-event-harness-inset .fc-timegrid-event {
-            border-top: 4px solid #142652 !important; /* Default color */
+            border-top: 4px solid #142652 !important;
         }
 
         .fc-event-content {
@@ -105,8 +105,6 @@
 
         .popup-content {
             background: white;
-            padding: 0px 20px; /* Correct padding */
-            border-radius: 4px;
             max-width: 400px;
             width: 90%;
             max-height: 90%; /* Limit height */
@@ -115,6 +113,8 @@
             position: relative;
             display: flex;
             flex-direction: column; /* Use flex to separate scrollable content and fixed footer */
+            padding: 0px 20px; /* New padding */
+            border-radius: 4px; /* New border-radius */
         }
 
         .popup-content h3 {
@@ -122,17 +122,21 @@
         }
 
         .close-popup {
-            position: absolute;
+            position: sticky;
             top: 10px;
             right: 10px;
+            margin-left: auto;
             cursor: pointer;
         }
 
         .popup-footer {
             margin-top: auto; /* Push to the bottom */
-            padding: 15px; /* Correct padding */
             border-top: 1px solid #ddd; /* Divider line */
             font-size: 0.9rem;
+            position: sticky;
+            bottom: 0;
+            background: white;
+            padding: 15px; /* New padding */
         }
 
         /* Custom row height */
@@ -219,21 +223,16 @@ $(document).ready(function () {
                 }
             ],
             eventContent: function (arg) {
-                let slotsAvailableHTML = '';
-
-                // Check if the category is not 2, 3, or 8 to show slots available
-                if (arg.event.extendedProps.category !== '2' && 
-                    arg.event.extendedProps.category !== '3' && 
-                    arg.event.extendedProps.category !== '8') {
-                    slotsAvailableHTML = `<div class="fc-event-slots">Slots Available: ${arg.event.extendedProps.bookings_limit}</div>`;
+                if (arg.event && arg.event.title) {
+                    return {
+                        html: `<div class="fc-event-content">
+                                  <div class="fc-event-title">${arg.event.title}</div>
+                                  <div class="fc-event-slots">Slots Available: ${arg.event.extendedProps.bookings_limit}</div> <!-- Display slots available -->
+                               </div>`
+                    };
+                } else {
+                    return { html: '<div class="fc-event-content"><div class="fc-event-title">Invalid Event</div></div>' };
                 }
-
-                return {
-                    html: `<div class="fc-event-content">
-                              <div class="fc-event-title">${arg.event.title}</div>
-                              ${slotsAvailableHTML} <!-- Conditionally show slots available -->
-                           </div>`
-                };
             },
             eventDidMount: function (info) {
                 tippy(info.el, {
@@ -242,25 +241,17 @@ $(document).ready(function () {
                     theme: 'light-border',
                     placement: 'top'
                 });
-
-                // Change the border-top style dynamically based on category
-                const category = info.event.extendedProps.category;
-                const borderColor = getCategoryBorderColor(category);
-                info.el.style.borderTop = `4px solid ${borderColor} !important`;
             },
             eventClick: function (info) {
                 const event = info.event;
-                const startTime = formatTimeToAEST(new Date(event.start));
-                const endTime = formatTimeToAEST(new Date(event.end));
                 const popup = document.createElement('div');
                 popup.className = 'popup-overlay';
                 popup.innerHTML = `
                     <div class="popup-content">
                         <span class="close-popup" onclick="this.parentElement.parentElement.remove()">×</span>
-                        <p><strong>${startTime} - ${endTime}</strong></p> <!-- Display start and end time -->
-                        <h3>${event.title}</h3> <!-- Changed to h3 -->
+                        <h3>${event.title}</h3>
                         <p>${event.extendedProps.description}</p>
-                        <div class="popup-footer">Bookings open Monday 23rd October at 7:00PM AEST</div> <!-- Fixed text footer -->
+                        <div class="popup-footer">Bookings open Monday 23rd October at 7:00PM AEST</div>
                     </div>
                 `;
                 document.body.appendChild(popup);
@@ -388,39 +379,17 @@ $(document).ready(function () {
     }
 
     function formatTimeToAEST(date) {
-        const options = {
+        return new Intl.DateTimeFormat('en-AU', {
             timeZone: 'Australia/Sydney',
             hour: '2-digit',
             minute: '2-digit',
             hour12: true
-        };
-        return new Intl.DateTimeFormat('en-AU', options).format(date);
+        }).format(date);
     }
 
     function isDateInRange(date, start, end) {
         const dateObj = new Date(date);
         return dateObj >= new Date(start) && dateObj <= new Date(end); // Check if date is within the range
-    }
-
-    function getCategoryBorderColor(category) {
-        switch (category) {
-            case '1':
-                return '#142652';
-            case '2':
-                return '#84cdb8';
-            case '3':
-                return '#84cdb8';
-            case '5':
-                return '#4b6c59';
-            case '6':
-                return '#cbe4e0';
-            case '7':
-                return '#142652';
-            case '8':
-                return '#84cdb8';
-            default:
-                return '#142652'; // Default color
-        }
     }
 
     function getHardcodedResources() {
