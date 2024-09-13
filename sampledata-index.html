@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sample Calendar with Sorted Resources</title>
+    <title>Calendar with Resource Grouping</title>
 
     <!-- Include FullCalendar Scheduler CSS -->
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@6.1.15/index.global.min.css" rel="stylesheet" />
@@ -44,24 +44,24 @@
         }
 
         .fc-v-event .fc-event-main {
-            color:#142652!important;
+            color: #142652 !important;
         }
 
         .fc-timegrid-event-harness-inset .fc-timegrid-event {
-            border-top: 4px solid #142652!important;
+            border-top: 4px solid #142652 !important;
         }
-        
+
         .fc-event-content {
             padding: 5px;
         }
-        
+
         .fc .fc-toolbar-title, .fc .fc-col-header-cell-cushion {
-            color: #0e4333!important;
+            color: #0e4333 !important;
         }
-        
+
         .fc .fc-button-primary {
-            background-color: #0e4333!important;
-            border-color:#0e4333!important;
+            background-color: #0e4333 !important;
+            border-color: #0e4333 !important;
         }
 
         .tippy-box {
@@ -118,6 +118,15 @@
             color: #0e4333 !important; /* Set custom text color */
             opacity: unset;
         }
+
+        /* Custom styles for resource group headers */
+        .resource-group-header {
+            cursor: pointer;
+            background-color: #e3e3e3;
+            padding: 5px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -126,7 +135,6 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // Sample data for resources
         const resources = [
             { id: '29', title: 'Woodlands Stage', category: 'Program', order_id: 'a' },
             { id: '30', title: 'Fresh Lounge', category: 'Program', order_id: 'b' },
@@ -156,153 +164,32 @@
             { id: '16', title: 'The Fresh Spa', category: 'Wellness & Spa', order_id: 'z' }
         ];
 
-        // Sort resources by order_id
-        resources.sort((a, b) => a.order_id.localeCompare(b.order_id));
-        console.log("Sorted Resources:", resources);
-
-        // Sample data for events
-        const events = [
-            {
-                id: '1',
-                title: 'Test event',
-                description: 'Test event description goes here',
-                start: '2024-10-29T14:00:00',
-                end: '2024-10-29T15:00:00',
-                resourceId: '4',
-                categories: '2'
-            },
-            {
-                id: '2',
-                title: 'Test 2 event',
-                description: 'Test 2 event description goes here',
-                start: '2024-10-29T14:00:00',
-                end: '2024-10-29T15:00:00',
-                resourceId: '8',
-                categories: '2'
-            },
-            {
-                id: '3',
-                title: 'Test 3 event',
-                description: 'Test 3 event description goes here',
-                start: '2024-10-29T15:00:00',
-                end: '2024-10-29T15:30:00',
-                resourceId: '4',
-                categories: '2'
-            },
-            {
-                id: '4',
-                title: 'Keynote Speaker',
-                description: 'Test 3 event description goes here',
-                start: '2024-10-29T11:00:00',
-                end: '2024-10-29T12:30:00',
-                resourceId: '29',
-                categories: '1'
-            },
-            // Create separate background events for each resource
-            ...resources.flatMap(resource => [
-                {
-                    id: `bg-event-${resource.id}-1`,
-                    title: ' ',
-                    description: '<b>Afternoon Tea, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
-                    start: '2024-10-29T15:30:00',
-                    end: '2024-10-29T16:00:00',
-                    resourceId: resource.id,
-                    display: 'background'
-                },
-                {
-                    id: `bg-event-${resource.id}-2`,
-                    title: ' ',
-                    description: '<b>Lunch, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
-                    start: '2024-10-29T13:00:00',
-                    end: '2024-10-29T14:00:00',
-                    resourceId: resource.id,
-                    display: 'background'
-                },
-                {
-                    id: `bg-event-${resource.id}-3`,
-                    title: ' ',
-                    description: '<b>Fresh Life Welcome Event</b><br>Brought to you by Galderma<br><br>On the Deck',
-                    start: '2024-10-29T17:30:00',
-                    end: '2024-10-29T18:30:00',
-                    resourceId: resource.id,
-                    display: 'background'
-                },
-                {
-                    id: `bg-event-${resource.id}-4`,
-                    title: ' ',
-                    description: '<b>Morning Tea, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
-                    start: '2024-10-30T11:30:00',
-                    end: '2024-10-30T12:00:00',
-                    resourceId: resource.id,
-                    display: 'background'
-                },
-                {
-                    id: `bg-event-${resource.id}-5`,
-                    title: ' ',
-                    description: '<b>Lunch, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
-                    start: '2024-10-30T13:30:00',
-                    end: '2024-10-30T14:30:00',
-                    resourceId: resource.id,
-                    display: 'background'
-                },
-                {
-                    id: `bg-event-${resource.id}-6`,
-                    title: '',
-                    description: '<b>Afternoon Tea, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
-                    start: '2024-10-30T16:00:00',
-                    end: '2024-10-30T16:30:00',
-                    resourceId: resource.id,
-                    display: 'background'
-                },
-                {
-                    id: `bg-event-${resource.id}-7`,
-                    title: ' ',
-                    description: '<b>Aperitivo Hour</b><br>Brought to you by Fresh Clinics Training Team<br><br>On the Deck',
-                    start: '2024-10-30T17:30:00',
-                    end: '2024-10-30T18:30:00',
-                    resourceId: resource.id,
-                    display: 'background'
-                },
-                {
-                    id: `bg-event-${resource.id}-8`,
-                    title: ' ',
-                    description: '<b>Morning Tea, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
-                    start: '2024-10-31T11:00:00',
-                    end: '2024-10-31T11:30:00',
-                    resourceId: resource.id,
-                    display: 'background'
-                },
-                {
-                    id: `bg-event-${resource.id}-9`,
-                    title: ' ',
-                    description: '<b>Lunch, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
-                    start: '2024-10-31T13:30:00',
-                    end: '2024-10-31T14:30:00',
-                    resourceId: resource.id,
-                    display: 'background'
-                },
-                {
-                    id: `bg-event-${resource.id}-10`,
-                    title: ' ',
-                    description: '<b>Afternoon Tea, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
-                    start: '2024-10-31T16:00:00',
-                    end: '2024-10-31T16:30:00',
-                    resourceId: resource.id,
-                    display: 'background'
-                },
-                {
-                    id: `bg-event-${resource.id}-10`,
-                    title: ' ',
-                    description: '<b>Fright Night Finale</b><br>(Ticketed Event)<br>Brought to you by Fresh Clinics<br><br>Woodlands Stage<br><br><b><a style="color:#84cdb8" href="https://events.humanitix.com/the-fresh-life-2024#group1">Buy ticket</a>',
-                    start: '2024-10-31T18:00:00',
-                    end: '2024-10-31T22:30:00',
-                    resourceId: resource.id,
-                    display: 'background'
-                }
-            ])
+        const resourceGroups = [
+            { id: 'program', title: 'Program' },
+            { id: 'trainingSuites', title: 'Training Suites' },
+            { id: 'activationsHub', title: 'Activations Hub' },
+            { id: 'wellnessSpa', title: 'Wellness & Spa' }
         ];
 
-        // Render the calendar
+        const groupedResources = {
+            program: [],
+            trainingSuites: [],
+            activationsHub: [],
+            wellnessSpa: []
+        };
+
+        resources.forEach(resource => {
+            if (resource.category === 'Program') {
+                groupedResources.program.push(resource);
+            } else if (resource.category === 'Training Suites') {
+                groupedResources.trainingSuites.push(resource);
+            } else if (resource.category === 'Activations Hub') {
+                groupedResources.activationsHub.push(resource);
+            } else if (resource.category === 'Wellness & Spa') {
+                groupedResources.wellnessSpa.push(resource);
+            }
+        });
+
         var calendarEl = document.getElementById('calendar');
         var calendar = new FullCalendar.Calendar(calendarEl, {
             schedulerLicenseKey: 'CC-Attribution-NonCommercial-NoDerivatives',
@@ -314,104 +201,38 @@
                 center: 'title',
                 right: 'next'
             },
-            dayMinWidth: 150, // Set column width
-            resources: resources,
-            events: events,
+            dayMinWidth: 150,
             height: 'auto',
-            slotMinTime: '07:00',
-            slotMaxTime: '23:00',
-            resourceOrder: 'order_id', // Order by order_id
-            businessHours: [
-                {
-                    daysOfWeek: [2],
-                    startTime: '09:00',
-                    endTime: '18:30'
-                },
-                {
-                    daysOfWeek: [3],
-                    startTime: '07:30',
-                    endTime: '11:30'
-                },
-                {
-                    daysOfWeek: [3],
-                    startTime: '12:00',
-                    endTime: '13:30'
-                },
-                {
-                    daysOfWeek: [3],
-                    startTime: '14:30',
-                    endTime: '16:00'
-                },
-                {
-                    daysOfWeek: [3],
-                    startTime: '16:30',
-                    endTime: '17:30'
-                },
-                {
-                    daysOfWeek: [3],
-                    startTime: '18:30',
-                    endTime: '19:00'
-                },
-                {
-                    daysOfWeek: [4],
-                    startTime: '07:00',
-                    endTime: '11:00'
-                },
-                {
-                    daysOfWeek: [4],
-                    startTime: '11:30',
-                    endTime: '13:30'
-                },
-                {
-                    daysOfWeek: [4],
-                    startTime: '14:30',
-                    endTime: '16:00'
-                },
-                {
-                    daysOfWeek: [4],
-                    startTime: '16:30',
-                    endTime: '22:30'
-                }
-            ],
-            eventClassNames: function (arg) {
-                if (arg.event.extendedProps.display === 'custom-event-display') {
-                    return ['custom-event-display']; // Add custom class
-                }
-                return [];
-            },
-            eventContent: function (arg) {
-                if (arg.event && arg.event.title) {
-                    return {
-                        html: `<div class="fc-event-content">
-                                  <div class="fc-event-title">${arg.event.title}</div>
-                               </div>`
-                    };
-                } else {
-                    return { html: '<div class="fc-event-content"><div class="fc-event-title">Invalid Event</div></div>' };
-                }
-            },
-            eventDidMount: function (info) {
-                tippy(info.el, {
-                    content: `<strong>${info.event.title}</strong><br>${info.event.extendedProps.description}`,
-                    allowHTML: true,
-                    theme: 'light-border',
-                    placement: 'top'
+            resources: [], // Start with no resources; we'll add them dynamically
+            events: [], // Add your events data here
+            resourceOrder: 'order_id',
+            allDaySlot: false,
+        });
+
+        // Add custom collapsible headers for each group
+        resourceGroups.forEach(group => {
+            // Create a custom header element
+            const header = document.createElement('div');
+            header.className = 'resource-group-header';
+            header.textContent = group.title;
+            header.setAttribute('data-group-id', group.id);
+            calendarEl.appendChild(header);
+
+            // Add resources for this group
+            groupedResources[group.id].forEach(resource => {
+                calendar.addResource(resource);
+            });
+
+            // Add click event to toggle resources
+            header.addEventListener('click', function () {
+                const groupId = this.getAttribute('data-group-id');
+                groupedResources[groupId].forEach(resource => {
+                    const resourceEl = document.querySelector(`[data-resource-id="${resource.id}"]`);
+                    if (resourceEl) {
+                        resourceEl.style.display = resourceEl.style.display === 'none' ? '' : 'none';
+                    }
                 });
-            },
-            eventClick: function (info) {
-                const event = info.event;
-                const popup = document.createElement('div');
-                popup.className = 'popup-overlay';
-                popup.innerHTML = `
-                    <div class="popup-content">
-                        <span class="close-popup" onclick="this.parentElement.parentElement.remove()">×</span>
-                        <h2>${event.title}</h2>
-                        <p>${event.extendedProps.description}</p>
-                    </div>
-                `;
-                document.body.appendChild(popup);
-            },
-            allDaySlot: false
+            });
         });
 
         calendar.render();
