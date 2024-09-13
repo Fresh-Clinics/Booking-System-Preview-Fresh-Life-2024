@@ -44,7 +44,7 @@
             background-color: #eae6e3 !important;
             color: white;
             border: none;
-            position: relative; /* Position relative for positioning slots */
+            position: relative; /* For positioning slots */
         }
 
         .fc-v-event .fc-event-main {
@@ -54,27 +54,27 @@
         .fc-timegrid-event-harness-inset .fc-timegrid-event {
             border-top: 4px solid #142652 !important;
         }
-        
+
         .fc-event-content {
             padding: 5px;
-            position: relative; /* Make the container relative for absolute positioning */
         }
 
-        .fc-event-slots {
-            font-size: 10px;
-            font-weight: normal; /* Unbold the font */
-            position: absolute;
-            bottom: 5px;
-            right: 5px;
-        }
-        
         .fc .fc-toolbar-title, .fc .fc-col-header-cell-cushion {
             color: #0e4333 !important;
         }
-        
+
         .fc .fc-button-primary {
             background-color: #0e4333 !important;
             border-color: #0e4333 !important;
+        }
+
+        .fc-event-slots {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            font-size: 10px; /* Adjust font size */
+            font-weight: normal; /* Unbold the text */
+            color: #142652;
         }
 
         .tippy-box {
@@ -109,18 +109,16 @@
             border-radius: 8px;
             max-width: 400px;
             width: 90%;
+            max-height: 90%; /* Limit height */
+            overflow-y: auto; /* Make content scrollable */
             text-align: center;
             position: relative;
-            max-height: 90%; /* Add max-height */
-            overflow-y: auto; /* Make content scrollable */
+            display: flex;
+            flex-direction: column; /* Use flex to separate scrollable content and fixed footer */
         }
 
-        .popup-fixed-bottom {
-            position: absolute;
-            bottom: 10px; /* Fixed position for bottom text */
-            left: 50%;
-            transform: translateX(-50%);
-            width: 100%;
+        .popup-content h3 {
+            margin-top: 0;
         }
 
         .close-popup {
@@ -128,6 +126,13 @@
             top: 10px;
             right: 10px;
             cursor: pointer;
+        }
+
+        .popup-footer {
+            margin-top: auto; /* Push to the bottom */
+            padding-top: 15px;
+            border-top: 1px solid #ddd; /* Divider line */
+            font-size: 0.9rem;
         }
 
         /* Custom row height */
@@ -180,7 +185,7 @@ $(document).ready(function () {
             schedulerLicenseKey: 'CC-Attribution-NonCommercial-NoDerivatives',
             initialView: 'resourceTimeGridDay',
             initialDate: '2024-10-29',
-            timeZone: 'Australia/Sydney',
+            timeZone: 'Australia/Sydney', // Set timezone to AEST
             headerToolbar: {
                 left: 'prev',
                 center: 'title',
@@ -218,7 +223,7 @@ $(document).ready(function () {
                     return {
                         html: `<div class="fc-event-content">
                                   <div class="fc-event-title">${arg.event.title}</div>
-                                  <div class="fc-event-slots">Slots Available: ${arg.event.extendedProps.bookings_limit}</div>
+                                  <div class="fc-event-slots">Slots Available: ${arg.event.extendedProps.bookings_limit}</div> <!-- Display slots available -->
                                </div>`
                     };
                 } else {
@@ -235,53 +240,25 @@ $(document).ready(function () {
             },
             eventClick: function (info) {
                 const event = info.event;
-                const startTime = formatTimeToAEST(event.start);
-                const endTime = formatTimeToAEST(event.end);
-                
-                fetchProductsForEvent(token, event.id, function (products) {
-                    const productItems = products.map(product => `<li>${product.name}</li>`).join('');
-                    const productList = products.length > 0 ? `<ul>${productItems}</ul>` : '<p>No products linked to this event.</p>';
-                    
-                    const popup = document.createElement('div');
-                    popup.className = 'popup-overlay';
-                    popup.innerHTML = `
-                        <div class="popup-content">
-                            <span class="close-popup" onclick="this.parentElement.parentElement.remove()">×</span>
-                            <p><strong>${startTime} - ${endTime}</strong></p>
-                            <h3>${event.title}</h3>
-                            <p>${event.extendedProps.description}</p>
-                            ${productList}
-                            <div class="popup-fixed-bottom"><strong>Bookings open Monday 23rd October at 7:00PM AEST</strong></div>
-                        </div>
-                    `;
-                    document.body.appendChild(popup);
-                });
+                const startTime = formatTimeToAEST(new Date(event.start));
+                const endTime = formatTimeToAEST(new Date(event.end));
+                const popup = document.createElement('div');
+                popup.className = 'popup-overlay';
+                popup.innerHTML = `
+                    <div class="popup-content">
+                        <span class="close-popup" onclick="this.parentElement.parentElement.remove()">×</span>
+                        <p><strong>${startTime} - ${endTime}</strong></p> <!-- Display start and end time -->
+                        <h3>${event.title}</h3> <!-- Changed to h3 -->
+                        <p>${event.extendedProps.description}</p>
+                        <div class="popup-footer">Bookings open Monday 23rd October at 7:00PM AEST</div> <!-- Fixed text footer -->
+                    </div>
+                `;
+                document.body.appendChild(popup);
             },
             allDaySlot: false
         });
 
         calendar.render();
-    }
-
-    function fetchProductsForEvent(token, eventId, callback) {
-        var client = new JSONRpcClient({
-            'url': 'https://user-api.simplybook.me',
-            'headers': {
-                'X-Company-Login': 'thefreshlifeconference',
-                'X-Token': token
-            },
-            'onerror': function (error) {
-                console.error("Error in JSON-RPC client setup:", error);
-            }
-        });
-
-        client.request('getProductList', [{ service_id: eventId }], function (products) {
-            console.log("Fetched products for event:", products);
-            callback(products);
-        }, function (error) {
-            console.error("Error fetching products:", error);
-            callback([]); // Return empty array on error
-        });
     }
 
     function fetchEventsForRange(token, start, end, callback) {
@@ -333,8 +310,8 @@ $(document).ready(function () {
                 // Fetch start time dynamically using getStartTimeMatrix
                 fetchEventStartTime(token, event.id, providerId, start, end, function (startTime) {
                     if (startTime && isDateInRange(startTime, start, end)) { // Check if start time is within the active date range
-                        // Calculate end time by adding duration (in minutes) to start time
-                        const duration = parseInt(event.duration) || 0; // Event duration in minutes
+                        // Calculate end time using event duration
+                        const duration = parseInt(event.duration); // Duration in minutes
                         const endTime = new Date(new Date(startTime).getTime() + duration * 60000); // Add duration to start time
 
                         // Push the event into the calendarEvents array
@@ -342,13 +319,14 @@ $(document).ready(function () {
                             id: event.id,
                             title: event.name,
                             start: startTime,
-                            end: endTime,
+                            end: endTime.toISOString(),
                             resourceId: providerId,
                             description: event.description || '',
-                            bookings_limit: event.bookings_limit || '0', // Include bookings limit
+                            bookings_limit: event.bookings_limit, // Add bookings limit
                             category: event.categories[0] // Get the first category
                         });
 
+                        // Check if all events are processed
                         processedCount++;
                         if (processedCount === events.length) {
                             callback(calendarEvents); // Callback with all processed events
@@ -399,9 +377,13 @@ $(document).ready(function () {
         });
     }
 
-    function formatTimeToAEST(dateTime) {
-        const options = { timeZone: 'Australia/Sydney', hour: '2-digit', minute: '2-digit', hour12: true };
-        return new Intl.DateTimeFormat('en-AU', options).format(new Date(dateTime));
+    function formatTimeToAEST(date) {
+        return new Intl.DateTimeFormat('en-AU', {
+            timeZone: 'Australia/Sydney',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        }).format(date);
     }
 
     function isDateInRange(date, start, end) {
