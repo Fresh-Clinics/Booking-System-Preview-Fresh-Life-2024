@@ -234,13 +234,13 @@ $(document).ready(function () {
             eventDidMount: function (info) {
                 // Map category IDs to border-top styles
                 const categoryBorderStyles = {
-                    '1': '4px solid #142652',
-                    '2': '4px solid #84cdb8',
-                    '3': '4px solid #84cdb8',
-                    '5': '4px solid #4b6c59',
-                    '6': '4px solid #cbe4e0',
-                    '7': '4px solid #142652',
-                    '8': '4px solid #84cdb8'
+                    '1': '4px solid #142652!important',
+                    '2': '4px solid #84cdb8!important',
+                    '3': '4px solid #84cdb8!important',
+                    '5': '4px solid #cbe4e0!important',
+                    '6': '4px solid #e8b2a6!important',
+                    '7': '4px solid #142652!important',
+                    '8': '4px solid #84cdb8!important'
                 };
 
                 // Get the category of the current event
@@ -261,18 +261,17 @@ $(document).ready(function () {
                 });
             },
             eventClick: function (info) {
+                timeZone: 'Australia/Sydney', // Set timezone to AEST
                 const event = info.event;
-                const startTime = formatTimeToAEST(new Date(event.start));
-                const endTime = formatTimeToAEST(new Date(event.end));
                 const popup = document.createElement('div');
                 popup.className = 'popup-overlay';
                 popup.innerHTML = `
                     <div class="popup-content">
                         <span class="close-popup" onclick="this.parentElement.parentElement.remove()">×</span>
-                        <p><strong>${startTime} - ${endTime}</strong></p> <!-- Display start and end time -->
-                        <h3>${event.title}</h3> <!-- Changed to h3 -->
+                        <p><strong>${startTime} - ${endTime}</strong></p>
+                        <h3>${event.title}</h3>
                         <p>${event.extendedProps.description}</p>
-                        <div class="popup-footer">Bookings open Monday 23rd October at 7:00PM AEST</div> <!-- Fixed text footer -->
+                        <div class="popup-footer">Bookings open Monday 23rd October at 7:00PM AEST</div>
                     </div>
                 `;
                 document.body.appendChild(popup);
