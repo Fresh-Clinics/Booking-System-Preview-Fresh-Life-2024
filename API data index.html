@@ -295,6 +295,8 @@ $(document).ready(function () {
                                 category: event.categories[0] // Get the first category
                             });
                         });
+                    } else {
+                        console.warn(`No available intervals for event ID ${event.id} within the specified date range.`);
                     }
 
                     // Check if all events are processed
@@ -332,11 +334,13 @@ $(document).ready(function () {
 
             if (timeIntervals) {
                 Object.keys(timeIntervals).forEach(function (date) {
-                    if (timeIntervals[date][unitId]) {
+                    if (timeIntervals[date][unitId] && timeIntervals[date][unitId].length > 0) {
                         timeIntervals[date][unitId].forEach(function (interval) {
                             const startTime = `${date}T${interval[0]}`; // Combine date and time
                             intervals.push([startTime]); // Add to intervals list
                         });
+                    } else {
+                        console.warn(`No available time intervals for unit ${unitId} on date ${date}.`);
                     }
                 });
             }
@@ -360,7 +364,7 @@ $(document).ready(function () {
 
     function getHardcodedResources() {
         return [
-            { id: '29', title: 'Woodlands Stage', category: 'Program', order_id: 'a' },
+             { id: '29', title: 'Woodlands Stage', category: 'Program', order_id: 'a' },
             { id: '30', title: 'Fresh Lounge', category: 'Program', order_id: 'b' },
             { id: '8', title: 'Merz | Room 1', category: 'Training Suites', order_id: 'c' },
             { id: '23', title: 'Merz | Room 2', category: 'Training Suites', order_id: 'd' },
@@ -379,7 +383,7 @@ $(document).ready(function () {
             { id: '12', title: 'Xytide', category: 'Training Suites', order_id: 'q' },
             { id: '15', title: 'Fresh Clinics | Room 1', category: 'Training Suites', order_id: 'r' },
             { id: '27', title: 'Fresh Clinics | Room 2', category: 'Training Suites', order_id: 's' },
-            { id: '28', title: 'Fresh Clinics | Room 2', category: 'Training Suites', order_id: 't' },
+            { id: '28', title: 'Laser & Skin Training', category: 'Training Suites', order_id: 't' },
             { id: '20', title: 'Venus Concept', category: 'Activations Hub', order_id: 'u' },
             { id: '17', title: 'Alma', category: 'Activations Hub', order_id: 'v' },
             { id: '19', title: 'Advanced Skin Technology', category: 'Activations Hub', order_id: 'w' },
@@ -393,4 +397,4 @@ $(document).ready(function () {
 </script>
 
 </body>
-</html>
+</html> 
