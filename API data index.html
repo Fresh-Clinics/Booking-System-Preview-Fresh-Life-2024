@@ -253,7 +253,7 @@ $(document).ready(function () {
         calendar.render();
     }
 
-    function fetchProductsForEvent(serviceId, callback) {
+    function fetchEventsForRange(token, start, end, callback) {
         var client = new JSONRpcClient({
             'url': 'https://user-api.simplybook.me',
             'headers': {
@@ -265,24 +265,34 @@ $(document).ready(function () {
             }
         });
 
-        client.request('getProductList', [{ service_id: serviceId }], function (products) {
-            if (products && Array.isArray(products)) {
-                callback(products);
+        client.request('getEventList', [], function (events) {
+            if (events) {
+                console.log("Fetched events (raw):", events);
+
+                // Ensure the events object is correctly handled
+                if (typeof events === 'object' && !Array.isArray(events)) {
+                    events = Object.values(events); // Convert to array if it's an object
+                }
+
+                if (Array.isArray(events) && events.length > 0) {
+                    processEvents(events, token, start, end, callback);
+                } else {
+                    console.error("No valid events returned. Please check the API response.");
+                    callback([]); // Return empty array if no events
+                }
             } else {
-                console.warn("No products available for service:", serviceId);
-                callback([]);
+                console.error("No events returned. Please check the API response.");
+                callback([]); // Return empty array if no events
             }
         }, function (error) {
-            console.error("Error fetching products for service:", serviceId, error);
-            callback([]);
+            console.error("Error fetching events:", error);
+            callback([]); // Return empty array on error
         });
     }
 
-    function formatTimeToAEST(date) {
-        const options = { timeZone: 'Australia/Sydney', hour: '2-digit', minute: '2-digit', hour12: true };
-        return new Intl.DateTimeFormat('en-AU', options).format(date);
-    }
+    // Include the rest of the necessary functions here...
 
+    // Ensure getHardcodedResources function is defined
     function getHardcodedResources() {
         return [
             { id: '29', title: 'Woodlands Stage', category: 'Program', order_id: 'a' },
@@ -314,8 +324,6 @@ $(document).ready(function () {
             { id: '16', title: 'The Fresh Spa', category: 'Wellness & Spa', order_id: 'zz' }
         ];
     }
-
-    // Include other existing functions here...
 });
 </script>
 
