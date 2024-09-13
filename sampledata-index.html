@@ -338,24 +338,14 @@
                     endTime: '22:30'
                 }
             ],
-             eventClassNames: function (arg) {
+            eventClassNames: function (arg) {
                 const categoryColors = {
                     '1': '#84cdb8',
                     '2': '#142652',
                     '3': '#0e4333',
                     '4': '#eae6e3'
                 };
-                return ['fc-event', { backgroundColor: categoryColors[arg.event.extendedProps.categories[0]] }];
-            },
-            resourceAreaHeaderContent: function(arg) {
-                return resources.map(resource => {
-                    return {
-                        html: `<div class="fc-col-header-cell-cushion">
-                            <img src="${resource.image}" class="resource-image" alt="${resource.title}">
-                            ${resource.title}
-                        </div>`
-                    }
-                });
+                return ['fc-event', `fc-event-category-${arg.event.extendedProps.categories[0]}`];
             },
             eventContent: function (arg) {
                 if (arg.event && arg.event.title) {
