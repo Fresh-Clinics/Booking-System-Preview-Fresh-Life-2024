@@ -51,10 +51,6 @@
             color: #142652 !important;
         }
 
-        .fc-timegrid-event-harness-inset .fc-timegrid-event {
-            border-top: 4px solid #142652 !important;
-        }
-
         .fc-event-content {
             padding: 5px;
         }
@@ -224,8 +220,10 @@ $(document).ready(function () {
             ],
             eventContent: function (arg) {
                 if (arg.event && arg.event.title) {
+                    // Determine border color based on category
+                    const borderColor = getCategoryBorderColor(arg.event.extendedProps.category);
                     return {
-                        html: `<div class="fc-event-content">
+                        html: `<div class="fc-event-content" style="border-top: 4px solid ${borderColor} !important;">
                                   <div class="fc-event-title">${arg.event.title}</div>
                                   <div class="fc-event-slots">Slots Available: ${arg.event.extendedProps.bookings_limit}</div> <!-- Display slots available -->
                                </div>`
@@ -244,11 +242,14 @@ $(document).ready(function () {
             },
             eventClick: function (info) {
                 const event = info.event;
+                const startTime = formatTimeToAEST(new Date(event.start));
+                const endTime = formatTimeToAEST(new Date(event.end));
                 const popup = document.createElement('div');
                 popup.className = 'popup-overlay';
                 popup.innerHTML = `
                     <div class="popup-content">
                         <span class="close-popup" onclick="this.parentElement.parentElement.remove()">×</span>
+                        <p><strong>${startTime} - ${endTime}</strong></p> <!-- Display start and end time -->
                         <h3>${event.title}</h3>
                         <p>${event.extendedProps.description}</p>
                         <div class="popup-footer">Bookings open Monday 23rd October at 7:00PM AEST</div>
@@ -390,6 +391,19 @@ $(document).ready(function () {
     function isDateInRange(date, start, end) {
         const dateObj = new Date(date);
         return dateObj >= new Date(start) && dateObj <= new Date(end); // Check if date is within the range
+    }
+
+    function getCategoryBorderColor(category) {
+        switch (category) {
+            case '1': return '#142652';
+            case '2': return '#84cdb8';
+            case '3': return '#84cdb8';
+            case '5': return '#4b6c59';
+            case '6': return '#cbe4e0';
+            case '7': return '#142652';
+            case '8': return '#84cdb8';
+            default: return '#142652'; // Default color
+        }
     }
 
     function getHardcodedResources() {
