@@ -52,7 +52,7 @@
         }
 
         .fc-timegrid-event-harness-inset .fc-timegrid-event {
-            border-top: 4px solid #142652 !important;
+            border-top: 4px solid #142652 !important; /* Default color */
         }
 
         .fc-event-content {
@@ -241,18 +241,22 @@ $(document).ready(function () {
                     theme: 'light-border',
                     placement: 'top'
                 });
+
+                // Dynamically set border color based on category
+                let category = info.event.extendedProps.category;
+                if (category) {
+                    let borderColor = getCategoryBorderColor(category);
+                    info.el.style.borderTop = `4px solid ${borderColor} !important`;
+                }
             },
             eventClick: function (info) {
                 const event = info.event;
-                const startTime = info.event.extendedProps.rawStartTime;  // Use raw start time fetched from SimplyBook
-                const endTime = info.event.extendedProps.rawEndTime;      // Use raw end time calculated
-
                 const popup = document.createElement('div');
                 popup.className = 'popup-overlay';
                 popup.innerHTML = `
                     <div class="popup-content">
                         <span class="close-popup" onclick="this.parentElement.parentElement.remove()">×</span>
-                        <p><strong>${formatTimeToAEST(new Date(startTime))} - ${formatTimeToAEST(new Date(endTime))}</strong></p> <!-- Display start and end time -->
+                        <p><strong>${formatTimeToAEST(new Date(event.extendedProps.rawStartTime))} - ${formatTimeToAEST(new Date(event.extendedProps.rawEndTime))}</strong></p>
                         <h3>${event.title}</h3>
                         <p>${event.extendedProps.description}</p>
                         <div class="popup-footer">Bookings open Monday 23rd October at 7:00PM AEST</div>
@@ -313,7 +317,7 @@ $(document).ready(function () {
                 const providerId = Object.keys(event.unit_map)[0]; // Get the provider ID from the unit_map
 
                 // Fetch start time dynamically using getStartTimeMatrix
-                fetchEventStartTime(token, event.id, providerId, start, end, function (startTime) {
+                fetchEventStartTime(token, event.id, providerId, start, end, function (startTime, rawStartTime) {
                     if (startTime && isDateInRange(startTime, start, end)) { // Check if start time is within the active date range
                         // Calculate end time using event duration
                         const duration = parseInt(event.duration); // Duration in minutes
@@ -329,8 +333,8 @@ $(document).ready(function () {
                             description: event.description || '',
                             bookings_limit: event.bookings_limit, // Add bookings limit
                             category: event.categories[0], // Get the first category
-                            rawStartTime: startTime, // Store raw start time for popup display
-                            rawEndTime: endTime.toISOString() // Store raw end time for popup display
+                            rawStartTime: rawStartTime, // Use raw start time for popup
+                            rawEndTime: endTime.toISOString() // Raw end time for popup
                         });
 
                         // Check if all events are processed
@@ -373,7 +377,7 @@ $(document).ready(function () {
                 const firstDate = Object.keys(timeMatrix)[0]; // Get the first available date
                 const startTime = timeMatrix[firstDate][0];   // Get the first available time
                 const fullStartTime = `${firstDate}T${startTime}`; // Combine to full ISO date-time string
-                callback(fullStartTime);
+                callback(fullStartTime, `${firstDate}T${startTime}`);
             } else {
                 console.error("No start time available for the given parameters.");
                 callback(null);
@@ -396,6 +400,19 @@ $(document).ready(function () {
     function isDateInRange(date, start, end) {
         const dateObj = new Date(date);
         return dateObj >= new Date(start) && dateObj <= new Date(end); // Check if date is within the range
+    }
+
+    function getCategoryBorderColor(category) {
+        switch (category) {
+            case '1': return '#142652';
+            case '2': return '#84cdb8';
+            case '3': return '#84cdb8';
+            case '5': return '#4b6c59';
+            case '6': return '#cbe4e0';
+            case '7': return '#142652';
+            case '8': return '#84cdb8';
+            default: return '#142652'; // Default color
+        }
     }
 
     function getHardcodedResources() {
