@@ -308,12 +308,12 @@ $(document).ready(function () {
                 const providerId = Object.keys(event.unit_map)[0]; // Get the provider ID from the unit_map
 
                 // Fetch start time dynamically using getStartTimeMatrix
-                fetchEventStartTime(token, event.id, providerId, start, end, function (startTime) {
+                fetchEventStartTime(token, event.id, providerId, start, end, function (startTime, rawStartTime) {
                     if (startTime && isDateInRange(startTime, start, end)) { // Check if start time is within the active date range
                         // Calculate end time using event duration
                         const duration = parseInt(event.duration); // Duration in minutes
-                        const endTime = new Date(event.extendedProps.rawEndTime; // Add duration to start time
-                                 
+                        const endTime = new Date(new Date(rawStartTime).getTime() + duration * 60000); // Calculate end time correctly
+
                         // Push the event into the calendarEvents array
                         calendarEvents.push({
                             id: event.id,
@@ -323,7 +323,9 @@ $(document).ready(function () {
                             resourceId: providerId,
                             description: event.description || '',
                             bookings_limit: event.bookings_limit, // Add bookings limit
-                            category: event.categories[0] // Get the first category
+                            category: event.categories[0], // Get the first category
+                            rawStartTime: rawStartTime,
+                            rawEndTime: endTime.toISOString()
                         });
 
                         // Check if all events are processed
