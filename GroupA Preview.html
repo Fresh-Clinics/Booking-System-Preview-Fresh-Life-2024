@@ -28,7 +28,8 @@
 <script>
 $(document).ready(function () {
     console.log("Initializing SimplyBook Widget with Events...");
-    var allFetchedEvents = []; // Global variable to store all fetched events
+
+    var cachedEvents = {};  // Local cache for events
 
     // Initialize JSON-RPC Client for SimplyBook API to fetch the token
     try {
@@ -43,9 +44,9 @@ $(document).ready(function () {
         loginClient.getToken('thefreshlifeconference', 'a5dc632dedf9f85bb8d5bfdd1a8087401787b413111ac0cfbca269a84ec348f3', function (token) {
             if (token) {
                 console.log("Fetched token: ", token);
-                // Fetch all events initially
-                fetchAllEvents(token, function() {
-                    renderCalendarWithEvents();
+                // Fetch and cache all events for the 3 days (29th, 30th, 31st October)
+                fetchAndCacheEvents(token, ['2024-10-29', '2024-10-30', '2024-10-31'], function() {
+                    renderCalendarWithEvents(token);  // Render the calendar once events are cached
                 });
             } else {
                 console.error("Failed to fetch token. Please check your API credentials.");
@@ -55,7 +56,22 @@ $(document).ready(function () {
         console.error("Error initializing JSON-RPC client or fetching token:", e);
     }
 
-    function renderCalendarWithEvents() {
+    function fetchAndCacheEvents(token, dates, callback) {
+        var totalDates = dates.length;
+        var fetchedDates = 0;
+
+        dates.forEach(function(date) {
+            fetchEventsForRange(token, date + 'T00:00:00', date + 'T23:59:59', function(events) {
+                cachedEvents[date] = events;  // Cache events for the date
+                fetchedDates++;
+                if (fetchedDates === totalDates) {
+                    callback();  // Callback when all dates have been fetched
+                }
+            });
+        });
+    }
+
+    function renderCalendarWithEvents(token) {
         var calendarEl = document.getElementById('calendar');
         var calendar = new FullCalendar.Calendar(calendarEl, {
             schedulerLicenseKey: 'CC-Attribution-NonCommercial-NoDerivatives',
@@ -69,12 +85,15 @@ $(document).ready(function () {
             },
             dayMinWidth: 150, // Set column width
             resources: getHardcodedResources(), // Use hardcoded resources
-            events: function (info, successCallback) {
-                // Filter events for the current date range
-                const filteredEvents = allFetchedEvents.filter(event => 
-                    new Date(event.start) >= new Date(info.startStr) && new Date(event.start) < new Date(info.endStr)
-                );
-                successCallback(filteredEvents);
+            events: function (info, successCallback, failureCallback) {
+                const dateStr = info.startStr.split('T')[0];  // Extract the date part (YYYY-MM-DD)
+                if (cachedEvents[dateStr]) {
+                    const hardcodedEvents = getHardcodedEvents(); // Get hardcoded events
+                    successCallback([...cachedEvents[dateStr], ...hardcodedEvents]); // Combine cached API and hardcoded events
+                } else {
+                    console.error("No events available in cache for date:", dateStr);
+                    failureCallback();
+                }
             },
             height: 'auto',
             slotMinTime: '07:00',
@@ -101,12 +120,10 @@ $(document).ready(function () {
                 if (arg.event && arg.event.title) {
                     // Determine border color based on category
                     const borderColor = getCategoryBorderColor(arg.event.extendedProps.category);
-                    // Display slots available only for non-hardcoded events
-                    const slotsAvailable = arg.event.extendedProps.displaySlots !== false ? `Slots Available: ${arg.event.extendedProps.bookings_limit}` : '';
                     return {
                         html: `<div class="fc-event-content" style="border-top: 4px solid ${borderColor} !important;">
                                   <div class="fc-event-title">${arg.event.title}</div>
-                                  <div class="fc-event-slots">${slotsAvailable}</div>
+                                  <div class="fc-event-slots">${arg.event.extendedProps.displaySlots ? `Slots Available: ${arg.event.extendedProps.bookings_limit}` : ''}</div> <!-- Display slots available -->
                                </div>`
                     };
                 } else {
@@ -141,14 +158,6 @@ $(document).ready(function () {
         });
 
         calendar.render();
-    }
-
-    function fetchAllEvents(token, callback) {
-        fetchEventsForRange(token, '2024-10-29', '2024-10-31', function(apiEvents) {
-            const hardcodedEvents = getHardcodedEvents(); // Get hardcoded events
-            allFetchedEvents = [...apiEvents, ...hardcodedEvents]; // Store all events
-            callback();
-        });
     }
 
     function fetchEventsForRange(token, start, end, callback) {
@@ -310,7 +319,7 @@ $(document).ready(function () {
                 start: '2024-10-29T15:30:00',
                 end: '2024-10-29T16:00:00',
                 resourceId: resource.id,
-                category: '9', // Correct property name to 'category'
+                category: '9',
                 display: 'background',
                 displaySlots: false
             },
