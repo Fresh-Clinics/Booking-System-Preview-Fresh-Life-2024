@@ -25,7 +25,7 @@
     <!-- Include JSON-RPC Client Library for SimplyBook.me -->
     <script src="json-rpc-client.js"></script>
 
-    <!-- Link to External Stylesheet -->
+    <!-- Custom Styles -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -35,8 +35,6 @@
 <script>
 $(document).ready(function () {
     console.log("Initializing SimplyBook Widget with Events...");
-
-    var allEvents = {};
 
     // Initialize JSON-RPC Client for SimplyBook API to fetch the token
     try {
@@ -51,30 +49,14 @@ $(document).ready(function () {
         loginClient.getToken('thefreshlifeconference', 'a5dc632dedf9f85bb8d5bfdd1a8087401787b413111ac0cfbca269a84ec348f3', function (token) {
             if (token) {
                 console.log("Fetched token: ", token);
-                // Fetch events for preloading
-                preloadEventsForDates(token, ['2024-10-29', '2024-10-30', '2024-10-31'], function() {
-                    renderCalendarWithEvents(token); // Render the calendar after preloading events
-                });
+                // Fetch events and render the calendar with the token
+                renderCalendarWithEvents(token);
             } else {
                 console.error("Failed to fetch token. Please check your API credentials.");
             }
         });
     } catch (e) {
         console.error("Error initializing JSON-RPC client or fetching token:", e);
-    }
-
-    function preloadEventsForDates(token, dates, callback) {
-        let datesProcessed = 0;
-
-        dates.forEach(date => {
-            fetchEventsForRange(token, date, date, function(events) {
-                allEvents[date] = events;
-                datesProcessed++;
-                if (datesProcessed === dates.length) {
-                    callback(); // All dates are preloaded, call the callback
-                }
-            });
-        });
     }
 
     function renderCalendarWithEvents(token) {
@@ -92,12 +74,10 @@ $(document).ready(function () {
             dayMinWidth: 150, // Set column width
             resources: getHardcodedResources(), // Use hardcoded resources
             events: function (info, successCallback, failureCallback) {
-                const dateKey = info.startStr.substring(0, 10); // Extract YYYY-MM-DD from startStr
-                if (allEvents[dateKey]) {
-                    successCallback(allEvents[dateKey]); // Load preloaded events for the selected date
-                } else {
-                    successCallback([]); // No events available for the date
-                }
+                fetchEventsForRange(token, info.startStr, info.endStr, function(apiEvents) {
+                    const hardcodedEvents = getHardcodedEvents(); // Get hardcoded events
+                    successCallback([...apiEvents, ...hardcodedEvents]); // Combine API and hardcoded events
+                });
             },
             height: 'auto',
             slotMinTime: '07:00',
@@ -152,6 +132,7 @@ $(document).ready(function () {
                         <p><strong>${formatTimeToAEST(new Date(event.extendedProps.rawStartTime))} - ${formatTimeToAEST(new Date(event.extendedProps.rawEndTime))}</strong></p>
                         <h3>${event.title}</h3>
                         <p>${event.extendedProps.description}</p>
+                        <img src="${event.extendedProps.resourceLogo}" alt="${event.extendedProps.resourceName}" style="width: 100px; margin-top: 10px;">
                         <div class="popup-footer">Bookings open Monday 23rd October at 7:00PM AEST</div>
                     </div>
                 `;
@@ -210,12 +191,11 @@ $(document).ready(function () {
                 const providerId = Object.keys(event.unit_map)[0]; // Get the provider ID from the unit_map
 
                 // Fetch start time dynamically using getStartTimeMatrix
-                fetchEventStartTime(token, event.id, providerId, start, end, function (startTime, rawStartTime) {
+                fetchEventStartTime(token, event.id, providerId, start, end, function (startTime) {
                     if (startTime && isDateInRange(startTime, start, end)) { // Check if start time is within the active date range
                         // Calculate end time using event duration
                         const duration = parseInt(event.duration); // Duration in minutes
-                        const endTime = new Date(rawStartTime); // Use the raw start time for calculating end time
-                        endTime.setMinutes(endTime.getMinutes() + duration); // Adjust end time based on duration
+                        const endTime = new Date(new Date(startTime).getTime() + duration * 60000); // Calculate end time
 
                         // Push the event into the calendarEvents array
                         calendarEvents.push({
@@ -227,8 +207,10 @@ $(document).ready(function () {
                             description: event.description || '',
                             bookings_limit: event.bookings_limit, // Add bookings limit
                             category: event.categories[0], // Get the first category
-                            rawStartTime: rawStartTime, // Store raw start time for popup display
-                            rawEndTime: endTime.toISOString() // Store raw end time for popup display
+                            rawStartTime: startTime,
+                            rawEndTime: endTime,
+                            resourceLogo: `image-files/${getHardcodedResources().find(r => r.id === providerId).image}`, // Add resource logo
+                            resourceName: getHardcodedResources().find(r => r.id === providerId).title // Add resource name
                         });
 
                         // Check if all events are processed
@@ -271,7 +253,7 @@ $(document).ready(function () {
                 const firstDate = Object.keys(timeMatrix)[0]; // Get the first available date
                 const startTime = timeMatrix[firstDate][0];   // Get the first available time
                 const fullStartTime = `${firstDate}T${startTime}`; // Combine to full ISO date-time string
-                callback(fullStartTime, new Date(fullStartTime)); // Pass both formatted and raw start time
+                callback(fullStartTime, fullStartTime); // Pass both formatted and raw start time
             } else {
                 console.error("No start time available for the given parameters.");
                 callback(null, null);
@@ -311,34 +293,139 @@ $(document).ready(function () {
 
     function getHardcodedResources() {
         return [
-            { id: '29', title: 'Woodlands Stage', category: 'Program', order_id: 'a' },
-            { id: '30', title: 'Fresh Lounge', category: 'Program', order_id: 'b' },
-            { id: '8', title: 'Merz | Room 1', category: 'Training Suites', order_id: 'c' },
-            { id: '23', title: 'Merz | Room 2', category: 'Training Suites', order_id: 'd' },
-            { id: '2', title: 'Galderma | Room 1', category: 'Training Suites', order_id: 'e' },
-            { id: '24', title: 'Galderma | Room 2', category: 'Training Suites', order_id: 'f' },
-            { id: '3', title: 'Allergan', category: 'Training Suites', order_id: 'g' },
-            { id: '4', title: 'Evolus', category: 'Training Suites', order_id: 'h' },
-            { id: '7', title: 'Candela', category: 'Training Suites', order_id: 'i' },
-            { id: '14', title: 'Cryomed', category: 'Training Suites', order_id: 'j' },
-            { id: '13', title: 'Dermocosmetica | Room 1', category: 'Training Suites', order_id: 'k' },
-            { id: '25', title: 'Dermocosmetica | Room 2', category: 'Training Suites', order_id: 'l' },
-            { id: '9', title: 'EnVogue', category: 'Training Suites', order_id: 'm' },
-            { id: '10', title: 'Hugel', category: 'Training Suites', order_id: 'n' },
-            { id: '26', title: 'Rejuran', category: 'Training Suites', order_id: 'o' },
-            { id: '11', title: 'Teoxane', category: 'Training Suites', order_id: 'p' },
-            { id: '12', title: 'Xytide', category: 'Training Suites', order_id: 'q' },
-            { id: '15', title: 'Fresh Clinics | Room 1', category: 'Training Suites', order_id: 'r' },
-            { id: '27', title: 'Fresh Clinics | Room 2', category: 'Training Suites', order_id: 's' },
-            { id: '28', title: 'Laser & Skin Training', category: 'Training Suites', order_id: 't' },
-            { id: '20', title: 'Venus Concept', category: 'Activations Hub', order_id: 'u' },
-            { id: '17', title: 'Alma', category: 'Activations Hub', order_id: 'v' },
-            { id: '19', title: 'Advanced Skin Technology', category: 'Activations Hub', order_id: 'w' },
-            { id: '22', title: 'Fresh Tech Hub', category: 'Activations Hub', order_id: 'x' },
-            { id: '18', title: 'The Skincare Company', category: 'Activations Hub', order_id: 'y' },
-            { id: '21', title: 'Wellness Sessions', category: 'Wellness & Spa', order_id: 'z' },
-            { id: '16', title: 'The Fresh Spa', category: 'Wellness & Spa', order_id: 'zz' }
+            { id: '29', title: 'Woodlands Stage', category: 'Program', order_id: 'a', image: 'woodlands-stage.png' },
+            { id: '30', title: 'Fresh Lounge', category: 'Program', order_id: 'b', image: 'fresh-lounge.png' },
+            { id: '8', title: 'Merz | Room 1', category: 'Training Suites', order_id: 'c', image: 'merz-room1.png' },
+            { id: '23', title: 'Merz | Room 2', category: 'Training Suites', order_id: 'd', image: 'merz-room2.png' },
+            { id: '2', title: 'Galderma | Room 1', category: 'Training Suites', order_id: 'e', image: 'galderma-room1.png' },
+            { id: '24', title: 'Galderma | Room 2', category: 'Training Suites', order_id: 'f', image: 'galderma-room2.png' },
+            { id: '3', title: 'Allergan', category: 'Training Suites', order_id: 'g', image: 'allergan.png' },
+            { id: '4', title: 'Evolus', category: 'Training Suites', order_id: 'h', image: 'evolus.png' },
+            { id: '7', title: 'Candela', category: 'Training Suites', order_id: 'i', image: 'candela.png' },
+            { id: '14', title: 'Cryomed', category: 'Training Suites', order_id: 'j', image: 'cryomed.png' },
+            { id: '13', title: 'Dermocosmetica | Room 1', category: 'Training Suites', order_id: 'k', image: 'dermocosmetica-room1.png' },
+            { id: '25', title: 'Dermocosmetica | Room 2', category: 'Training Suites', order_id: 'l', image: 'dermocosmetica-room2.png' },
+            { id: '9', title: 'EnVogue', category: 'Training Suites', order_id: 'm', image: 'envogue.png' },
+            { id: '10', title: 'Hugel', category: 'Training Suites', order_id: 'n', image: 'hugel.png' },
+            { id: '26', title: 'Rejuran', category: 'Training Suites', order_id: 'o', image: 'rejuran.png' },
+            { id: '11', title: 'Teoxane', category: 'Training Suites', order_id: 'p', image: 'teoxane.png' },
+            { id: '12', title: 'Xytide', category: 'Training Suites', order_id: 'q', image: 'xytide.png' },
+            { id: '15', title: 'Fresh Clinics | Room 1', category: 'Training Suites', order_id: 'r', image: 'fresh-clinics-room1.png' },
+            { id: '27', title: 'Fresh Clinics | Room 2', category: 'Training Suites', order_id: 's', image: 'fresh-clinics-room2.png' },
+            { id: '28', title: 'Laser & Skin Training', category: 'Training Suites', order_id: 't', image: 'laser-skin-training.png' },
+            { id: '20', title: 'Venus Concept', category: 'Activations Hub', order_id: 'u', image: 'venus-concept.png' },
+            { id: '17', title: 'Alma', category: 'Activations Hub', order_id: 'v', image: 'alma.png' },
+            { id: '19', title: 'Advanced Skin Technology', category: 'Activations Hub', order_id: 'w', image: 'advanced-skin-technology.png' },
+            { id: '22', title: 'Fresh Tech Hub', category: 'Activations Hub', order_id: 'x', image: 'fresh-tech-hub.png' },
+            { id: '18', title: 'The Skincare Company', category: 'Activations Hub', order_id: 'y', image: 'skincare-company.png' },
+            { id: '21', title: 'Wellness Sessions', category: 'Wellness & Spa', order_id: 'z', image: 'wellness-sessions.png' },
+            { id: '16', title: 'The Fresh Spa', category: 'Wellness & Spa', order_id: 'zz', image: 'fresh-spa.png' }
         ];
+    }
+
+    function getHardcodedEvents() {
+        const resources = getHardcodedResources();
+        return resources.flatMap(resource => [
+            {
+                id: `bg-event-${resource.id}-1`,
+                title: ' ',
+                description: '<b>Afternoon Tea, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
+                start: '2024-10-29T15:30:00',
+                end: '2024-10-29T16:00:00',
+                resourceId: resource.id,
+                display: 'background'
+            },
+            {
+                id: `bg-event-${resource.id}-2`,
+                title: ' ',
+                description: '<b>Lunch, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
+                start: '2024-10-29T13:00:00',
+                end: '2024-10-29T14:00:00',
+                resourceId: resource.id,
+                display: 'background'
+            },
+            {
+                id: `bg-event-${resource.id}-3`,
+                title: ' ',
+                description: '<b>Fresh Life Welcome Event</b><br>Brought to you by Galderma<br><br>On the Deck',
+                start: '2024-10-29T17:30:00',
+                end: '2024-10-29T18:30:00',
+                resourceId: resource.id,
+                display: 'background'
+            },
+            {
+                id: `bg-event-${resource.id}-4`,
+                title: ' ',
+                description: '<b>Morning Tea, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
+                start: '2024-10-30T11:30:00',
+                end: '2024-10-30T12:00:00',
+                resourceId: resource.id,
+                display: 'background'
+            },
+            {
+                id: `bg-event-${resource.id}-5`,
+                title: ' ',
+                description: '<b>Lunch, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
+                start: '2024-10-30T13:30:00',
+                end: '2024-10-30T14:30:00',
+                resourceId: resource.id,
+                display: 'background'
+            },
+            {
+                id: `bg-event-${resource.id}-6`,
+                title: '',
+                description: '<b>Afternoon Tea, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
+                start: '2024-10-30T16:00:00',
+                end: '2024-10-30T16:30:00',
+                resourceId: resource.id,
+                display: 'background'
+            },
+            {
+                id: `bg-event-${resource.id}-7`,
+                title: ' ',
+                description: '<b>Aperitivo Hour</b><br>Brought to you by Fresh Clinics Training Team<br><br>On the Deck',
+                start: '2024-10-30T17:30:00',
+                end: '2024-10-30T18:30:00',
+                resourceId: resource.id,
+                display: 'background'
+            },
+            {
+                id: `bg-event-${resource.id}-8`,
+                title: ' ',
+                description: '<b>Morning Tea, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
+                start: '2024-10-31T11:00:00',
+                end: '2024-10-31T11:30:00',
+                resourceId: resource.id,
+                display: 'background'
+            },
+            {
+                id: `bg-event-${resource.id}-9`,
+                title: ' ',
+                description: '<b>Lunch, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
+                start: '2024-10-31T13:30:00',
+                end: '2024-10-31T14:30:00',
+                resourceId: resource.id,
+                display: 'background'
+            },
+            {
+                id: `bg-event-${resource.id}-10`,
+                title: ' ',
+                description: '<b>Afternoon Tea, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
+                start: '2024-10-31T16:00:00',
+                end: '2024-10-31T16:30:00',
+                resourceId: resource.id,
+                display: 'background'
+            },
+            {
+                id: `bg-event-${resource.id}-10`,
+                title: ' ',
+                description: '<b>Fright Night Finale</b><br>(Ticketed Event)<br>Brought to you by Fresh Clinics<br><br>Woodlands Stage<br><br><b><a style="color:#84cdb8" href="https://events.humanitix.com/the-fresh-life-2024#group1">Buy ticket</a>',
+                start: '2024-10-31T18:00:00',
+                end: '2024-10-31T22:30:00',
+                resourceId: resource.id,
+                display: 'background'
+            }
+        ]);
     }
 });
 </script>
