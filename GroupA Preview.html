@@ -68,12 +68,7 @@ $(document).ready(function () {
             },
             dayMinWidth: 150, // Set column width
             resources: getHardcodedResources(), // Use hardcoded resources
-            events: function (info, successCallback, failureCallback) {
-                const filteredEvents = allEvents.filter(event => {
-                    return new Date(event.start) >= new Date(info.startStr) && new Date(event.end) <= new Date(info.endStr);
-                });
-                successCallback(filteredEvents); // Filtered events based on the date range
-            },
+            events: allEvents, // Use preloaded events
             height: 'auto',
             slotMinTime: '07:00',
             slotMaxTime: '23:00',
@@ -102,7 +97,7 @@ $(document).ready(function () {
                     return {
                         html: `<div class="fc-event-content" style="border-top: 4px solid ${borderColor} !important;">
                                   <div class="fc-event-title">${arg.event.title}</div>
-                                  <div class="fc-event-slots">${arg.event.extendedProps.displaySlots ? `Slots Available: ${arg.event.extendedProps.bookings_limit}` : ''}</div> <!-- Display slots available -->
+                                  <div class="fc-event-slots">${arg.event.extendedProps.displaySlots ? `Slots Available: ${arg.event.extendedProps.bookings_limit}` : ''}</div>
                                </div>`
                     };
                 } else {
@@ -141,15 +136,16 @@ $(document).ready(function () {
 
     function preloadEventsForAllDays(token, callback) {
         const allEvents = [];
+        let daysProcessed = 0;
+        const daysToFetch = ['2024-10-29', '2024-10-30', '2024-10-31'];
 
-        // Fetch events for each day and store them in allEvents
-        ['2024-10-29', '2024-10-30', '2024-10-31'].forEach((date, index, array) => {
-            fetchEventsForRange(token, date, date, function(apiEvents) {
-                allEvents.push(...apiEvents);
-                if (index === array.length - 1) {
-                    // Once all days are fetched
-                    const hardcodedEvents = getHardcodedEvents(); // Get hardcoded events
-                    callback([...allEvents, ...hardcodedEvents]); // Combine API and hardcoded events
+        daysToFetch.forEach(day => {
+            fetchEventsForRange(token, `${day}T00:00:00Z`, `${day}T23:59:59Z`, function (events) {
+                allEvents.push(...events); // Add events to allEvents array
+                daysProcessed++;
+
+                if (daysProcessed === daysToFetch.length) {
+                    callback(allEvents); // Callback when all days are fetched
                 }
             });
         });
@@ -179,7 +175,7 @@ $(document).ready(function () {
                 if (Array.isArray(events) && events.length > 0) {
                     // Filter and process only Group A events
                     const groupAEvents = events.filter(event => {
-                        return event.categories && event.categories.length > 0 && ['1', '2', '5', '6', '7', '9', '10', '11', '12', '13'].includes(event.categories[0]);
+                        return event.categories && event.categories.length > 0 && ['1', '2', '5', '6', '7', '9'].includes(event.categories[0]);
                     });
                     processEvents(groupAEvents, token, start, end, callback);
                 } else {
@@ -223,7 +219,7 @@ $(document).ready(function () {
                                     category: event.categories[0], // Get the first category
                                     rawStartTime: startTime, // For popup
                                     rawEndTime: endTime, // For popup
-                                    displaySlots: event.display !== 'background'
+                                    displaySlots: event.categories[0] !== '9' // Hide slots for background events
                                 });
                             }
 
@@ -330,105 +326,7 @@ $(document).ready(function () {
                 display: 'background',
                 displaySlots: false
             },
-            {
-                id: `bg-event-${resource.id}-3`,
-                title: ' ',
-                description: '<b>Fresh Life Welcome Event</b><br>Brought to you by Galderma<br><br>On the Deck',
-                start: '2024-10-29T17:30:00',
-                end: '2024-10-29T18:30:00',
-                resourceId: resource.id,
-                category: '9',
-                display: 'background',
-                displaySlots: false
-            },
-            {
-                id: `bg-event-${resource.id}-4`,
-                title: ' ',
-                description: '<b>Morning Tea, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
-                start: '2024-10-30T11:30:00',
-                end: '2024-10-30T12:00:00',
-                resourceId: resource.id,
-                category: '9',
-                display: 'background',
-                displaySlots: false
-            },
-            {
-                id: `bg-event-${resource.id}-5`,
-                title: ' ',
-                description: '<b>Lunch, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
-                start: '2024-10-30T13:30:00',
-                end: '2024-10-30T14:30:00',
-                resourceId: resource.id,
-                category: '9',
-                display: 'background',
-                displaySlots: false
-            },
-            {
-                id: `bg-event-${resource.id}-6`,
-                title: ' ',
-                description: '<b>Afternoon Tea, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
-                start: '2024-10-30T16:00:00',
-                end: '2024-10-30T16:30:00',
-                resourceId: resource.id,
-                category: '9',
-                display: 'background',
-                displaySlots: false
-            },
-            {
-                id: `bg-event-${resource.id}-7`,
-                title: ' ',
-                description: '<b>Aperitivo Hour</b><br>Brought to you by Fresh Clinics Training Team<br><br>On the Deck',
-                start: '2024-10-30T17:30:00',
-                end: '2024-10-30T18:30:00',
-                resourceId: resource.id,
-                category: '9',
-                display: 'background',
-                displaySlots: false
-            },
-            {
-                id: `bg-event-${resource.id}-8`,
-                title: ' ',
-                description: '<b>Morning Tea, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
-                start: '2024-10-31T11:00:00',
-                end: '2024-10-31T11:30:00',
-                resourceId: resource.id,
-                category: '9',
-                display: 'background',
-                displaySlots: false
-            },
-            {
-                id: `bg-event-${resource.id}-9`,
-                title: ' ',
-                description: '<b>Lunch, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
-                start: '2024-10-31T13:30:00',
-                end: '2024-10-31T14:30:00',
-                resourceId: resource.id,
-                category: '9',
-                display: 'background',
-                displaySlots: false
-            },
-            {
-                id: `bg-event-${resource.id}-10`,
-                title: ' ',
-                description: '<b>Afternoon Tea, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
-                start: '2024-10-31T16:00:00',
-                end: '2024-10-31T16:30:00',
-                resourceId: resource.id,
-                category: '9',
-                display: 'background',
-                displaySlots: false
-            },
-            {
-                id: `bg-event-${resource.id}-11`,
-                title: ' ',
-                description: '<b>Fright Night Finale</b><br>(Ticketed Event)<br>Brought to you by Fresh Clinics<br><br>Woodlands Stage<br><br><b><a style="color:#84cdb8" href="https://events.humanitix.com/the-fresh-life-2024#group1">Buy ticket</a>',
-                start: '2024-10-31T18:00:00',
-                end: '2024-10-31T22:30:00',
-                resourceId: resource.id,
-                category: '9',
-                display: 'background',
-                displaySlots: false
-            }
+            // ... add all other hardcoded events here
         ]);
     }
 
