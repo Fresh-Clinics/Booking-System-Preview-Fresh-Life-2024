@@ -2,73 +2,73 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Fetch Start Times for All Events</title>
+    <meta http-equiv="X-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fetch Cartesian Start Times</title>
+
+    <!-- Include jQuery -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+    <!-- Include JSON-RPC Client Library for SimplyBook.me -->
     <script src="json-rpc-client.js"></script>
 </head>
 <body>
 
 <script>
 $(document).ready(function () {
-    console.log("Starting to fetch all start times using getCartesianStartTimeMatrix...");
+    console.log("Fetching events and Cartesian start times...");
 
-    var loginClient = new JSONRpcClient({
-        'url': 'https://user-api.simplybook.me/login',
+    var token = "YOUR_TOKEN"; // Replace with your token
+    var start = '2024-10-29'; // Start date
+    var end = '2024-10-31'; // End date
+
+    // Initialize JSON-RPC Client for SimplyBook API to fetch events
+    var client = new JSONRpcClient({
+        'url': 'https://user-api.simplybook.me',
+        'headers': {
+            'X-Company-Login': 'thefreshlifeconference',
+            'X-Token': token
+        },
         'onerror': function (error) {
-            console.error("Login Error:", error);
+            console.error("Error in JSON-RPC client setup:", error);
         }
     });
 
-    // Fetch token dynamically using the SimplyBook API credentials
-    loginClient.getToken('thefreshlifeconference', 'a5dc632dedf9f85bb8d5bfdd1a8087401787b413111ac0cfbca269a84ec348f3', function (token) {
-        if (token) {
-            console.log("Fetched token: ", token);
-            fetchAllStartTimes(token); // Call function to fetch all start times
+    // Fetch events to get eventId and unitId pairs
+    client.request('getEventList', [], function (eventData) {
+        console.log(eventData); // Log eventData to check its format
+
+        if (typeof eventData === 'object') {
+            // Extract eventId and unitId pairs from the eventData
+            var eventUnitPairs = extractEventIdUnitPairs(eventData);
+            console.log("Event-Unit Pairs:", eventUnitPairs);
+
+            // Fetch Cartesian start times for all event-unit pairs
+            fetchCartesianStartTimes(eventUnitPairs, token, start, end);
         } else {
-            console.error("Failed to fetch token. Please check your API credentials.");
+            console.error("Unexpected data format received from API.");
         }
+    }, function (error) {
+        console.error("Error fetching events:", error);
     });
 
-    function fetchAllStartTimes(token) {
-        const eventsDataUrl = "https://raw.githubusercontent.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/main/data%20pull.json"; // URL to your fetched events data
-        const startDate = '2024-10-29';
-        const endDate = '2024-10-31';
-        const allStartTimes = [];
-        let requestCount = 0;
-
-        // Fetch the JSON data for events
-        $.getJSON(eventsDataUrl, function(eventData) {
-            const eventIdUnitPairs = extractEventIdUnitPairs(eventData);
-            
-            eventIdUnitPairs.forEach(pair => {
-                requestCount++;
-                setTimeout(() => { // Adding delay to avoid rate limits
-                    fetchStartTimes(token, pair.eventId, pair.unitId, startDate, endDate, function(startTimes) {
-                        allStartTimes.push({ eventId: pair.eventId, unitId: pair.unitId, startTimes });
-                        console.log(`Fetched start times for Event ${pair.eventId}, Unit ${pair.unitId}: `, startTimes);
-                        if (allStartTimes.length === requestCount) {
-                            console.log("All start times fetched: ", allStartTimes);
-                            exportFetchedData(allStartTimes); // Export all start times after fetching
-                        }
-                    });
-                }, requestCount * 1000); // 1-second delay between each request
-            });
-        });
-    }
-
+    // Function to extract eventId and unitId pairs
     function extractEventIdUnitPairs(eventData) {
-        const eventIdUnitPairs = [];
-        eventData.forEach(event => {
+        var eventUnitPairs = [];
+        Object.keys(eventData).forEach(function (eventId) {
+            var event = eventData[eventId];
             if (event.unit_map) {
-                Object.keys(event.unit_map).forEach(unitId => {
-                    eventIdUnitPairs.push({ eventId: event.id, unitId });
+                const unitIds = Object.keys(event.unit_map); // Extract unitIds from unit_map
+                unitIds.forEach(unitId => {
+                    eventUnitPairs.push({ eventId: parseInt(eventId), unitId: parseInt(unitId) });
                 });
             }
         });
-        return eventIdUnitPairs;
+        return eventUnitPairs;
     }
 
-    function fetchStartTimes(token, eventId, unitId, from, to, callback) {
+    // Function to fetch Cartesian start times
+    function fetchCartesianStartTimes(eventUnitPairs, token, start, end) {
         var client = new JSONRpcClient({
             'url': 'https://user-api.simplybook.me',
             'headers': {
@@ -80,30 +80,13 @@ $(document).ready(function () {
             }
         });
 
-        client.request('getCartesianStartTimeMatrix', [from, to, eventId, unitId, 1, null, []], function (timeMatrix) {
-            console.log("Fetched start times for event:", eventId, "unit:", unitId, ":", timeMatrix);
-            callback(timeMatrix);
-        }, function (error) {
-            console.error("Error fetching start times:", error);
-            callback(null);
+        eventUnitPairs.forEach(function (pair) {
+            client.request('getCartesianStartTimeMatrix', [start, end, pair.eventId, pair.unitId, 1, null, []], function (timeMatrix) {
+                console.log(`Fetched start times for Event ID ${pair.eventId} and Unit ID ${pair.unitId}:`, timeMatrix);
+            }, function (error) {
+                console.error(`Error fetching start times for Event ID ${pair.eventId} and Unit ID ${pair.unitId}:`, error);
+            });
         });
-    }
-
-    function exportFetchedData(data) {
-        if (data && data.length > 0) {
-            const dataStr = JSON.stringify(data, null, 2); // Convert to JSON string
-            const blob = new Blob([dataStr], { type: 'application/json' }); // Create a Blob from the JSON string
-            const url = URL.createObjectURL(blob); // Create a URL for the Blob
-
-            const a = document.createElement('a'); // Create a link element
-            a.href = url; // Set the URL to the link
-            a.download = 'fetched_start_times.json'; // Set the download filename
-            a.click(); // Trigger a click to download the file
-
-            console.log("Start times data exported successfully.");
-        } else {
-            console.error("No data to export. Make sure events are fetched correctly.");
-        }
     }
 });
 </script>
