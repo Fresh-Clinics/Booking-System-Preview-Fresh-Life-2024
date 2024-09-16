@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calendar with Live Events from SimplyBook.me - Group A</title>
+    <title>Calendar with Live Events from SimplyBook.me</title>
 
     <!-- Include FullCalendar Scheduler CSS -->
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@6.1.15/index.global.min.css" rel="stylesheet" />
@@ -282,11 +282,8 @@ $(document).ready(function () {
                     events = Object.values(events); // Convert to array if it's an object
                 }
 
-                // Filter events by category for Group A (1, 2, 5, 6, 7)
-                const filteredEvents = events.filter(event => ['1', '2', '5', '6', '7'].includes(event.categories[0]));
-
-                if (filteredEvents.length > 0) {
-                    processEvents(filteredEvents, token, start, end, callback);
+                if (Array.isArray(events) && events.length > 0) {
+                    processEvents(events, token, start, end, callback);
                 } else {
                     console.error("No valid events returned. Please check the API response.");
                     callback([]); // Return empty array if no events
@@ -313,29 +310,36 @@ $(document).ready(function () {
                 // Fetch start time dynamically using getStartTimeMatrix
                 fetchEventStartTime(token, event.id, providerId, start, end, function (startTime) {
                     if (startTime && isDateInRange(startTime, start, end)) { // Check if start time is within the active date range
-                        // Calculate end time using event duration
-                        const duration = parseInt(event.duration); // Duration in minutes
-                        const endTime = new Date(new Date(startTime).getTime() + duration * 60000); // Add duration to start time
+                        // Calculate end time using SimplyBook's calculateEndTime
+                        calculateEventEndTime(token, startTime, event.id, providerId, function (endTime) {
+                            if (endTime) {
+                                // Push the event into the calendarEvents array
+                                calendarEvents.push({
+                                    id: event.id,
+                                    title: event.name,
+                                    start: startTime,
+                                    end: endTime,
+                                    resourceId: providerId,
+                                    description: event.description || '',
+                                    bookings_limit: event.bookings_limit, // Add bookings limit
+                                    category: event.categories[0], // Get the first category
+                                    rawStartTime: startTime,
+                                    rawEndTime: endTime
+                                });
 
-                        // Push the event into the calendarEvents array
-                        calendarEvents.push({
-                            id: event.id,
-                            title: event.name,
-                            start: startTime,
-                            end: endTime.toISOString(),
-                            resourceId: providerId,
-                            description: event.description || '',
-                            bookings_limit: event.bookings_limit, // Add bookings limit
-                            category: event.categories[0], // Get the first category
-                            rawStartTime: startTime,
-                            rawEndTime: endTime
+                                // Check if all events are processed
+                                processedCount++;
+                                if (processedCount === events.length) {
+                                    callback(calendarEvents); // Callback with all processed events
+                                }
+                            } else {
+                                console.error("Failed to calculate end time for event:", event.id);
+                                processedCount++;
+                                if (processedCount === events.length) {
+                                    callback(calendarEvents); // Callback with all processed events
+                                }
+                            }
                         });
-
-                        // Check if all events are processed
-                        processedCount++;
-                        if (processedCount === events.length) {
-                            callback(calendarEvents); // Callback with all processed events
-                        }
                     } else {
                         processedCount++;
                         if (processedCount === events.length) {
@@ -371,13 +375,39 @@ $(document).ready(function () {
                 const firstDate = Object.keys(timeMatrix)[0]; // Get the first available date
                 const startTime = timeMatrix[firstDate][0];   // Get the first available time
                 const fullStartTime = `${firstDate}T${startTime}`; // Combine to full ISO date-time string
-                callback(fullStartTime);
+                callback(fullStartTime); // Pass formatted start time
             } else {
                 console.error("No start time available for the given parameters.");
                 callback(null);
             }
         }, function (error) {
             console.error("Error fetching start times:", error);
+            callback(null);
+        });
+    }
+
+    function calculateEventEndTime(token, startDateTime, eventId, unitId, callback) {
+        var client = new JSONRpcClient({
+            'url': 'https://user-api.simplybook.me',
+            'headers': {
+                'X-Company-Login': 'thefreshlifeconference',
+                'X-Token': token
+            },
+            'onerror': function (error) {
+                console.error("Error in JSON-RPC client setup:", error);
+            }
+        });
+
+        client.request('calculateEndTime', [startDateTime, eventId, unitId, []], function (endTime) {
+            console.log("Fetched end time for event:", endTime);
+            if (endTime) {
+                callback(endTime); // Pass the calculated end time
+            } else {
+                console.error("Failed to fetch end time for the given parameters.");
+                callback(null);
+            }
+        }, function (error) {
+            console.error("Error fetching end time:", error);
             callback(null);
         });
     }
