@@ -29,8 +29,6 @@
 $(document).ready(function () {
     console.log("Initializing SimplyBook Widget with Events...");
 
-    var cachedEvents = {};  // Local cache for events
-
     // Initialize JSON-RPC Client for SimplyBook API to fetch the token
     try {
         var loginClient = new JSONRpcClient({
@@ -44,31 +42,14 @@ $(document).ready(function () {
         loginClient.getToken('thefreshlifeconference', 'a5dc632dedf9f85bb8d5bfdd1a8087401787b413111ac0cfbca269a84ec348f3', function (token) {
             if (token) {
                 console.log("Fetched token: ", token);
-                // Fetch and cache all events for the 3 days (29th, 30th, 31st October)
-                fetchAndCacheEvents(token, ['2024-10-29', '2024-10-30', '2024-10-31'], function() {
-                    renderCalendarWithEvents(token);  // Render the calendar once events are cached
-                });
+                // Fetch events and render the calendar with the token
+                renderCalendarWithEvents(token);
             } else {
                 console.error("Failed to fetch token. Please check your API credentials.");
             }
         });
     } catch (e) {
         console.error("Error initializing JSON-RPC client or fetching token:", e);
-    }
-
-    function fetchAndCacheEvents(token, dates, callback) {
-        var totalDates = dates.length;
-        var fetchedDates = 0;
-
-        dates.forEach(function(date) {
-            fetchEventsForRange(token, date + 'T00:00:00', date + 'T23:59:59', function(events) {
-                cachedEvents[date] = events;  // Cache events for the date
-                fetchedDates++;
-                if (fetchedDates === totalDates) {
-                    callback();  // Callback when all dates have been fetched
-                }
-            });
-        });
     }
 
     function renderCalendarWithEvents(token) {
@@ -86,14 +67,11 @@ $(document).ready(function () {
             dayMinWidth: 150, // Set column width
             resources: getHardcodedResources(), // Use hardcoded resources
             events: function (info, successCallback, failureCallback) {
-                const dateStr = info.startStr.split('T')[0];  // Extract the date part (YYYY-MM-DD)
-                if (cachedEvents[dateStr]) {
+                // Fetch events for the current date range
+                fetchEventsForRange(token, info.startStr, info.endStr, function(apiEvents) {
                     const hardcodedEvents = getHardcodedEvents(); // Get hardcoded events
-                    successCallback([...cachedEvents[dateStr], ...hardcodedEvents]); // Combine cached API and hardcoded events
-                } else {
-                    console.error("No events available in cache for date:", dateStr);
-                    failureCallback();
-                }
+                    successCallback([...apiEvents, ...hardcodedEvents]); // Combine API and hardcoded events
+                });
             },
             height: 'auto',
             slotMinTime: '07:00',
@@ -184,7 +162,7 @@ $(document).ready(function () {
                 if (Array.isArray(events) && events.length > 0) {
                     // Filter and process only Group A events
                     const groupAEvents = events.filter(event => {
-                        return event.categories && event.categories.length > 0 && ['1', '2', '5', '6', '7', '9'].includes(event.categories[0]);
+                        return event.categories && event.categories.length > 0 && ['1', '2', '5', '6', '7', '9', '10'].includes(event.categories[0]);
                     });
                     processEvents(groupAEvents, token, start, end, callback);
                 } else {
@@ -319,9 +297,8 @@ $(document).ready(function () {
                 start: '2024-10-29T15:30:00',
                 end: '2024-10-29T16:00:00',
                 resourceId: resource.id,
-                category: '9',
-                display: 'background',
-                displaySlots: false
+                categories: '9',
+                display: 'background'
             },
             {
                 id: `bg-event-${resource.id}-2`,
@@ -330,9 +307,8 @@ $(document).ready(function () {
                 start: '2024-10-29T13:00:00',
                 end: '2024-10-29T14:00:00',
                 resourceId: resource.id,
-                category: '9',
-                display: 'background',
-                displaySlots: false
+                categories: '9',
+                display: 'background'
             },
             {
                 id: `bg-event-${resource.id}-3`,
@@ -341,9 +317,8 @@ $(document).ready(function () {
                 start: '2024-10-29T17:30:00',
                 end: '2024-10-29T18:30:00',
                 resourceId: resource.id,
-                category: '9',
-                display: 'background',
-                displaySlots: false
+                categories: '9',
+                display: 'background'
             },
             {
                 id: `bg-event-${resource.id}-4`,
@@ -352,9 +327,8 @@ $(document).ready(function () {
                 start: '2024-10-30T11:30:00',
                 end: '2024-10-30T12:00:00',
                 resourceId: resource.id,
-                category: '9',
-                display: 'background',
-                displaySlots: false
+                categories: '9',
+                display: 'background'
             },
             {
                 id: `bg-event-${resource.id}-5`,
@@ -363,9 +337,8 @@ $(document).ready(function () {
                 start: '2024-10-30T13:30:00',
                 end: '2024-10-30T14:30:00',
                 resourceId: resource.id,
-                category: '9',
-                display: 'background',
-                displaySlots: false
+                categories: '9',
+                display: 'background'
             },
             {
                 id: `bg-event-${resource.id}-6`,
@@ -374,9 +347,8 @@ $(document).ready(function () {
                 start: '2024-10-30T16:00:00',
                 end: '2024-10-30T16:30:00',
                 resourceId: resource.id,
-                category: '9',
-                display: 'background',
-                displaySlots: false
+                categories: '9',
+                display: 'background'
             },
             {
                 id: `bg-event-${resource.id}-7`,
@@ -385,9 +357,8 @@ $(document).ready(function () {
                 start: '2024-10-30T17:30:00',
                 end: '2024-10-30T18:30:00',
                 resourceId: resource.id,
-                category: '9',
-                display: 'background',
-                displaySlots: false
+                categories: '9',
+                display: 'background'
             },
             {
                 id: `bg-event-${resource.id}-8`,
@@ -396,9 +367,8 @@ $(document).ready(function () {
                 start: '2024-10-31T11:00:00',
                 end: '2024-10-31T11:30:00',
                 resourceId: resource.id,
-                category: '9',
-                display: 'background',
-                displaySlots: false
+                categories: '9',
+                display: 'background'
             },
             {
                 id: `bg-event-${resource.id}-9`,
@@ -407,9 +377,8 @@ $(document).ready(function () {
                 start: '2024-10-31T13:30:00',
                 end: '2024-10-31T14:30:00',
                 resourceId: resource.id,
-                category: '9',
-                display: 'background',
-                displaySlots: false
+                categories: '9',
+                display: 'background'
             },
             {
                 id: `bg-event-${resource.id}-10`,
@@ -418,9 +387,8 @@ $(document).ready(function () {
                 start: '2024-10-31T16:00:00',
                 end: '2024-10-31T16:30:00',
                 resourceId: resource.id,
-                category: '9',
-                display: 'background',
-                displaySlots: false
+                categories: '9',
+                display: 'background'
             },
             {
                 id: `bg-event-${resource.id}-11`,
@@ -429,9 +397,8 @@ $(document).ready(function () {
                 start: '2024-10-31T18:00:00',
                 end: '2024-10-31T22:30:00',
                 resourceId: resource.id,
-                category: '9',
-                display: 'background',
-                displaySlots: false
+                categories: '9',
+                display: 'background'
             }
         ]);
     }
@@ -453,20 +420,23 @@ $(document).ready(function () {
     function getCategoryBorderColor(category) {
         switch (category) {
             case '1': return '#142652';
-            case '2': return '#84cdb8';
-            case '3': return '#84cdb8';
+            case '2': return '#142652';
+            case '3': return '#142652';
             case '5': return '#4b6c59';
             case '6': return '#cbe4e0';
             case '7': return '#142652';
             case '8': return '#84cdb8';
             case '9': return '#ebf7f4';
+            case '10': return '#84cdb8';
+            case '11': return '#84cdb8';
+
             default: return '#142652'; // Default color
         }
     }
 
     function getHardcodedResources() {
         return [
-            { id: '29', title: 'Woodlands Stage', category: 'Program', order_id: 'a', logo: ' ' },
+              { id: '29', title: 'Woodlands Stage', category: 'Program', order_id: 'a', logo: ' ' },
             { id: '30', title: 'Fresh Lounge', category: 'Program', order_id: 'b', logo: ' ' },
             { id: '8', title: 'Merz | Room 1', category: 'Training Suites', order_id: 'c', logo: 'Merz.png' },
             { id: '23', title: 'Merz | Room 2', category: 'Training Suites', order_id: 'd', logo: 'Merz.png' },
