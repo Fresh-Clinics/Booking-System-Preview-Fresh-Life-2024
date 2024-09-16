@@ -8,24 +8,18 @@
 
     <!-- Include FullCalendar Scheduler CSS -->
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@6.1.15/index.global.min.css" rel="stylesheet" />
-    <link href="style.css" rel="stylesheet" /> <!-- Link to external CSS -->
-
     <!-- Include Tippy.js for tooltips -->
     <link href="https://unpkg.com/tippy.js@6/dist/tippy.css" rel="stylesheet" />
-
     <!-- Include FullCalendar Scheduler JS -->
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@6.1.15/index.global.min.js"></script>
-
     <!-- Include jQuery -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-
     <!-- Include Tippy.js for tooltips -->
     <script src="https://unpkg.com/@popperjs/core@2"></script>
     <script src="https://unpkg.com/tippy.js@6"></script>
-
     <!-- Include JSON-RPC Client Library for SimplyBook.me -->
     <script src="json-rpc-client.js"></script>
-
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
@@ -60,8 +54,6 @@ $(document).ready(function () {
 
     function renderCalendarWithEvents(token) {
         var calendarEl = document.getElementById('calendar');
-        var eventsData = {}; // Cache for loaded events
-
         var calendar = new FullCalendar.Calendar(calendarEl, {
             schedulerLicenseKey: 'CC-Attribution-NonCommercial-NoDerivatives',
             initialView: 'resourceTimeGridDay',
@@ -75,12 +67,11 @@ $(document).ready(function () {
             dayMinWidth: 150, // Set column width
             resources: getHardcodedResources(), // Use hardcoded resources
             events: function (info, successCallback, failureCallback) {
-                const day = info.startStr;
-                if (eventsData[day]) {
-                    successCallback(eventsData[day]); // Use cached data
-                } else {
-                    fetchEventsForDay(token, day, successCallback);
-                }
+                // Fetch events for the current date range
+                fetchEventsForRange(token, info.startStr, info.endStr, function(apiEvents) {
+                    const hardcodedEvents = getHardcodedEvents(); // Get hardcoded events
+                    successCallback([...apiEvents, ...hardcodedEvents]); // Combine API and hardcoded events
+                });
             },
             height: 'auto',
             slotMinTime: '07:00',
@@ -104,17 +95,13 @@ $(document).ready(function () {
                 }
             ],
             eventContent: function (arg) {
-                if (arg.event.extendedProps.isBackground) {
-                    return {
-                        html: `<div class="fc-event-content"></div>`
-                    };
-                } else if (arg.event && arg.event.title) {
+                if (arg.event && arg.event.title) {
                     // Determine border color based on category
                     const borderColor = getCategoryBorderColor(arg.event.extendedProps.category);
                     return {
                         html: `<div class="fc-event-content" style="border-top: 4px solid ${borderColor} !important;">
                                   <div class="fc-event-title">${arg.event.title}</div>
-                                  <div class="fc-event-slots">Slots Available: ${arg.event.extendedProps.bookings_limit}</div>
+                                  <div class="fc-event-slots">${arg.event.extendedProps.displaySlots ? `Slots Available: ${arg.event.extendedProps.bookings_limit}` : ''}</div> <!-- Display slots available -->
                                </div>`
                     };
                 } else {
@@ -136,7 +123,7 @@ $(document).ready(function () {
                 popup.innerHTML = `
                     <div class="popup-content">
                         <span class="close-popup" onclick="this.parentElement.parentElement.remove()">×</span>
-                        <img src="image-files/${event.extendedProps.resourceImage}" alt="${event.extendedProps.resourceTitle}" style="width: 100px; margin: auto;" /> <!-- Centered Image -->
+                        <img src="${getResourceLogo(event.resourceId)}" style="width: 100px; margin: 10px auto;" alt="Resource Logo">
                         <p><strong>${formatTimeToAEST(new Date(event.extendedProps.rawStartTime))} - ${formatTimeToAEST(new Date(event.extendedProps.rawEndTime))}</strong></p>
                         <h3>${event.title}</h3>
                         <p>${event.extendedProps.description}</p>
@@ -151,8 +138,7 @@ $(document).ready(function () {
         calendar.render();
     }
 
-    function fetchEventsForDay(token, day, callback) {
-        // Fetch events for a specific day
+    function fetchEventsForRange(token, start, end, callback) {
         var client = new JSONRpcClient({
             'url': 'https://user-api.simplybook.me',
             'headers': {
@@ -174,7 +160,7 @@ $(document).ready(function () {
                 }
 
                 if (Array.isArray(events) && events.length > 0) {
-                    processEvents(events, token, day, callback);
+                    processEvents(events, token, start, end, callback);
                 } else {
                     console.error("No valid events returned. Please check the API response.");
                     callback([]); // Return empty array if no events
@@ -189,7 +175,7 @@ $(document).ready(function () {
         });
     }
 
-    function processEvents(events, token, day, callback) {
+    function processEvents(events, token, start, end, callback) {
         var calendarEvents = [];
         var processedCount = 0;
 
@@ -199,23 +185,26 @@ $(document).ready(function () {
                 const providerId = Object.keys(event.unit_map)[0]; // Get the provider ID from the unit_map
 
                 // Fetch start time dynamically using getStartTimeMatrix
-                fetchEventStartTime(token, event.id, providerId, day, day, function (startTime) {
-                    if (startTime && isDateInRange(startTime, day, day)) { // Check if start time is within the active date range
+                fetchEventStartTime(token, event.id, providerId, start, end, function (startTime) {
+                    if (startTime && isDateInRange(startTime, start, end)) { // Check if start time is within the active date range
                         // Calculate end time using event duration
                         fetchEventEndTime(token, startTime, event.id, providerId, function (endTime) {
-                            // Push the event into the calendarEvents array
-                            calendarEvents.push({
-                                id: event.id,
-                                title: event.name,
-                                start: startTime,
-                                end: endTime.toISOString(),
-                                resourceId: providerId,
-                                description: event.description || '',
-                                bookings_limit: event.bookings_limit, // Add bookings limit
-                                category: event.categories[0], // Get the first category
-                                rawStartTime: startTime, // Store raw start time for popup
-                                rawEndTime: endTime.toISOString() // Store raw end time for popup
-                            });
+                            if (endTime) {
+                                // Push the event into the calendarEvents array
+                                calendarEvents.push({
+                                    id: event.id,
+                                    title: event.name,
+                                    start: startTime,
+                                    end: endTime,
+                                    resourceId: providerId,
+                                    description: event.description || '',
+                                    bookings_limit: event.bookings_limit, // Add bookings limit
+                                    category: event.categories[0], // Get the first category
+                                    displaySlots: !['2', '3', '8'].includes(event.categories[0]), // Show slots for certain categories
+                                    rawStartTime: startTime, // For popup
+                                    rawEndTime: endTime // For popup
+                                });
+                            }
 
                             // Check if all events are processed
                             processedCount++;
@@ -281,10 +270,10 @@ $(document).ready(function () {
             }
         });
 
-        client.request('calculateEndTime', [startDateTime.replace('T', ' '), eventId, unitId, []], function (endTime) {
+        client.request('calculateEndTime', [startDateTime, eventId, unitId, []], function (endTime) {
             console.log("Fetched end time for event:", endTime);
             if (endTime) {
-                callback(new Date(endTime));
+                callback(endTime);
             } else {
                 console.error("No end time available for the given parameters.");
                 callback(null);
@@ -293,6 +282,111 @@ $(document).ready(function () {
             console.error("Error fetching end time:", error);
             callback(null);
         });
+    }
+
+    function getHardcodedEvents() {
+        const resources = getHardcodedResources();
+        return resources.flatMap(resource => [
+            {
+                id: `bg-event-${resource.id}-1`,
+                title: ' ',
+                description: '<b>Afternoon Tea, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
+                start: '2024-10-29T15:30:00',
+                end: '2024-10-29T16:00:00',
+                resourceId: resource.id,
+                display: 'background'
+            },
+            {
+                id: `bg-event-${resource.id}-2`,
+                title: ' ',
+                description: '<b>Lunch, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
+                start: '2024-10-29T13:00:00',
+                end: '2024-10-29T14:00:00',
+                resourceId: resource.id,
+                display: 'background'
+            },
+            {
+                id: `bg-event-${resource.id}-3`,
+                title: ' ',
+                description: '<b>Fresh Life Welcome Event</b><br>Brought to you by Galderma<br><br>On the Deck',
+                start: '2024-10-29T17:30:00',
+                end: '2024-10-29T18:30:00',
+                resourceId: resource.id,
+                display: 'background'
+            },
+            {
+                id: `bg-event-${resource.id}-4`,
+                title: ' ',
+                description: '<b>Morning Tea, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
+                start: '2024-10-30T11:30:00',
+                end: '2024-10-30T12:00:00',
+                resourceId: resource.id,
+                display: 'background'
+            },
+            {
+                id: `bg-event-${resource.id}-5`,
+                title: ' ',
+                description: '<b>Lunch, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
+                start: '2024-10-30T13:30:00',
+                end: '2024-10-30T14:30:00',
+                resourceId: resource.id,
+                display: 'background'
+            },
+            {
+                id: `bg-event-${resource.id}-6`,
+                title: '',
+                description: '<b>Afternoon Tea, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
+                start: '2024-10-30T16:00:00',
+                end: '2024-10-30T16:30:00',
+                resourceId: resource.id,
+                display: 'background'
+            },
+            {
+                id: `bg-event-${resource.id}-7`,
+                title: ' ',
+                description: '<b>Aperitivo Hour</b><br>Brought to you by Fresh Clinics Training Team<br><br>On the Deck',
+                start: '2024-10-30T17:30:00',
+                end: '2024-10-30T18:30:00',
+                resourceId: resource.id,
+                display: 'background'
+            },
+            {
+                id: `bg-event-${resource.id}-8`,
+                title: ' ',
+                description: '<b>Morning Tea, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
+                start: '2024-10-31T11:00:00',
+                end: '2024-10-31T11:30:00',
+                resourceId: resource.id,
+                display: 'background'
+            },
+            {
+                id: `bg-event-${resource.id}-9`,
+                title: ' ',
+                description: '<b>Lunch, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
+                start: '2024-10-31T13:30:00',
+                end: '2024-10-31T14:30:00',
+                resourceId: resource.id,
+                display: 'background'
+            },
+            {
+                id: `bg-event-${resource.id}-10`,
+                title: ' ',
+                description: '<b>Afternoon Tea, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
+                start: '2024-10-31T16:00:00',
+                end: '2024-10-31T16:30:00',
+                resourceId: resource.id,
+                display: 'background'
+            },
+            {
+                id: `bg-event-${resource.id}-11`,
+                title: ' ',
+                description: '<b>Fright Night Finale</b><br>(Ticketed Event)<br>Brought to you by Fresh Clinics<br><br>Woodlands Stage<br><br><b><a style="color:#84cdb8" href="https://events.humanitix.com/the-fresh-life-2024#group1">Buy ticket</a>',
+                start: '2024-10-31T18:00:00',
+                end: '2024-10-31T22:30:00',
+                resourceId: resource.id,
+                display: 'background'
+            }
+        ]);
     }
 
     function formatTimeToAEST(date) {
@@ -324,10 +418,10 @@ $(document).ready(function () {
 
     function getHardcodedResources() {
         return [
-            { id: '29', title: 'Woodlands Stage', category: 'Program', order_id: 'a', logo: 'woodlands-stage.png' },
-            { id: '30', title: 'Fresh Lounge', category: 'Program', order_id: 'b', logo: 'fresh-lounge.png' },
-            { id: '8', title: 'Merz | Room 1', category: 'Training Suites', order_id: 'c', logo: 'merz-room1.png' },
-            { id: '23', title: 'Merz | Room 2', category: 'Training Suites', order_id: 'd', logo: 'merz-room2.png' },
+              { id: '29', title: 'Woodlands Stage', category: 'Program', order_id: 'a', logo: ' ' },
+            { id: '30', title: 'Fresh Lounge', category: 'Program', order_id: 'b', logo: ' ' },
+            { id: '8', title: 'Merz | Room 1', category: 'Training Suites', order_id: 'c', logo: 'Merz.png' },
+            { id: '23', title: 'Merz | Room 2', category: 'Training Suites', order_id: 'd', logo: 'Merz.png' },
             { id: '2', title: 'Galderma | Room 1', category: 'Training Suites', order_id: 'e', logo: 'Galderma.png' },
             { id: '24', title: 'Galderma | Room 2', category: 'Training Suites', order_id: 'f', logo: 'Galderma.png' },
             { id: '3', title: 'Allergan', category: 'Training Suites', order_id: 'g', logo: 'Allergan.png' },
@@ -343,17 +437,21 @@ $(document).ready(function () {
             { id: '12', title: 'Xytide', category: 'Training Suites', order_id: 'q', logo: 'Xytide.png' },
             { id: '15', title: 'Fresh Clinics | Room 1', category: 'Training Suites', order_id: 'r', logo: 'Fresh-Clinics.png' },
             { id: '27', title: 'Fresh Clinics | Room 2', category: 'Training Suites', order_id: 's', logo: 'Fresh-Clinics.png' },
-            { id: '28', title: 'Laser & Skin Training', category: 'Training Suites', order_id: 't', logo: 'laser-skin-training.png' },
+            { id: '28', title: 'Laser & Skin Training', category: 'Training Suites', order_id: 't', logo: 'Laser-Skin-Training.png' },
             { id: '20', title: 'Venus Concept', category: 'Activations Hub', order_id: 'u', logo: 'Venus.png' },
             { id: '17', title: 'Alma', category: 'Activations Hub', order_id: 'v', logo: 'Alma.png' },
             { id: '19', title: 'Advanced Skin Technology', category: 'Activations Hub', order_id: 'w', logo: 'AST.png' },
             { id: '22', title: 'Fresh Tech Hub', category: 'Activations Hub', order_id: 'x', logo: 'fresh-tech-hub.png' },
             { id: '18', title: 'The Skincare Company', category: 'Activations Hub', order_id: 'y', logo: 'Skincare-Company.png' },
-            { id: '21', title: 'Wellness Sessions', category: 'Wellness & Spa', order_id: 'z', logo: 'wellness-sessions.png' },
-            { id: '16', title: 'The Fresh Spa', category: 'Wellness & Spa', order_id: 'zz', logo: 'the-fresh-spa.png' }
+            { id: '21', title: 'Wellness Sessions', category: 'Wellness & Spa', order_id: 'z', logo: ' ' },
+            { id: '16', title: 'The Fresh Spa', category: 'Wellness & Spa', order_id: 'zz', logo: ' ' }
         ];
     }
 
+    function getResourceLogo(resourceId) {
+        const resource = getHardcodedResources().find(r => r.id === resourceId);
+        return resource ? resource.logo : '';
+    }
 });
 </script>
 
