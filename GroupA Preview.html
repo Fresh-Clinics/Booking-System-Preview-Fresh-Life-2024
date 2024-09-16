@@ -25,7 +25,7 @@
     <!-- Include JSON-RPC Client Library for SimplyBook.me -->
     <script src="json-rpc-client.js"></script>
 
-    <!-- Link to external CSS -->
+    <!-- Link to External Stylesheet -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -36,7 +36,7 @@
 $(document).ready(function () {
     console.log("Initializing SimplyBook Widget with Events...");
 
-    let allEvents = {}; // To store all preloaded events for the days
+    var allEvents = {};
 
     // Initialize JSON-RPC Client for SimplyBook API to fetch the token
     try {
@@ -51,8 +51,10 @@ $(document).ready(function () {
         loginClient.getToken('thefreshlifeconference', 'a5dc632dedf9f85bb8d5bfdd1a8087401787b413111ac0cfbca269a84ec348f3', function (token) {
             if (token) {
                 console.log("Fetched token: ", token);
-                // Fetch all events for the 3 days and render the calendar with the token
-                preloadEvents(token);
+                // Fetch events for preloading
+                preloadEventsForDates(token, ['2024-10-29', '2024-10-30', '2024-10-31'], function() {
+                    renderCalendarWithEvents(token); // Render the calendar after preloading events
+                });
             } else {
                 console.error("Failed to fetch token. Please check your API credentials.");
             }
@@ -61,23 +63,21 @@ $(document).ready(function () {
         console.error("Error initializing JSON-RPC client or fetching token:", e);
     }
 
-    function preloadEvents(token) {
-        const datesToLoad = ['2024-10-29', '2024-10-30', '2024-10-31'];
-        let eventsFetched = 0;
+    function preloadEventsForDates(token, dates, callback) {
+        let datesProcessed = 0;
 
-        datesToLoad.forEach(date => {
-            fetchEventsForDate(token, date, function(events) {
-                allEvents[date] = events; // Store events for each date
-                eventsFetched++;
-
-                if (eventsFetched === datesToLoad.length) {
-                    renderCalendarWithEvents(allEvents); // Render calendar once all dates are fetched
+        dates.forEach(date => {
+            fetchEventsForRange(token, date, date, function(events) {
+                allEvents[date] = events;
+                datesProcessed++;
+                if (datesProcessed === dates.length) {
+                    callback(); // All dates are preloaded, call the callback
                 }
             });
         });
     }
 
-    function renderCalendarWithEvents(allEvents) {
+    function renderCalendarWithEvents(token) {
         var calendarEl = document.getElementById('calendar');
         var calendar = new FullCalendar.Calendar(calendarEl, {
             schedulerLicenseKey: 'CC-Attribution-NonCommercial-NoDerivatives',
@@ -92,9 +92,12 @@ $(document).ready(function () {
             dayMinWidth: 150, // Set column width
             resources: getHardcodedResources(), // Use hardcoded resources
             events: function (info, successCallback, failureCallback) {
-                // Load events from preloaded data
-                const eventsForDay = allEvents[info.startStr] || [];
-                successCallback(eventsForDay);
+                const dateKey = info.startStr.substring(0, 10); // Extract YYYY-MM-DD from startStr
+                if (allEvents[dateKey]) {
+                    successCallback(allEvents[dateKey]); // Load preloaded events for the selected date
+                } else {
+                    successCallback([]); // No events available for the date
+                }
             },
             height: 'auto',
             slotMinTime: '07:00',
@@ -160,12 +163,6 @@ $(document).ready(function () {
         calendar.render();
     }
 
-    function fetchEventsForDate(token, date, callback) {
-        fetchEventsForRange(token, date, date, function(events) {
-            callback(events);
-        });
-    }
-
     function fetchEventsForRange(token, start, end, callback) {
         var client = new JSONRpcClient({
             'url': 'https://user-api.simplybook.me',
@@ -217,8 +214,8 @@ $(document).ready(function () {
                     if (startTime && isDateInRange(startTime, start, end)) { // Check if start time is within the active date range
                         // Calculate end time using event duration
                         const duration = parseInt(event.duration); // Duration in minutes
-                        const endTime = new Date(rawStartTime); // Use the raw start time for calculating the end time
-                        endTime.setMinutes(endTime.getMinutes() + duration); // Add duration to start time
+                        const endTime = new Date(rawStartTime); // Use the raw start time for calculating end time
+                        endTime.setMinutes(endTime.getMinutes() + duration); // Adjust end time based on duration
 
                         // Push the event into the calendarEvents array
                         calendarEvents.push({
@@ -230,8 +227,8 @@ $(document).ready(function () {
                             description: event.description || '',
                             bookings_limit: event.bookings_limit, // Add bookings limit
                             category: event.categories[0], // Get the first category
-                            rawStartTime: rawStartTime,
-                            rawEndTime: endTime.toISOString() // Store the raw end time for popup use
+                            rawStartTime: rawStartTime, // Store raw start time for popup display
+                            rawEndTime: endTime.toISOString() // Store raw end time for popup display
                         });
 
                         // Check if all events are processed
@@ -274,7 +271,7 @@ $(document).ready(function () {
                 const firstDate = Object.keys(timeMatrix)[0]; // Get the first available date
                 const startTime = timeMatrix[firstDate][0];   // Get the first available time
                 const fullStartTime = `${firstDate}T${startTime}`; // Combine to full ISO date-time string
-                callback(fullStartTime, fullStartTime); // Pass both formatted and raw start time
+                callback(fullStartTime, new Date(fullStartTime)); // Pass both formatted and raw start time
             } else {
                 console.error("No start time available for the given parameters.");
                 callback(null, null);
