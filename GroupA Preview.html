@@ -164,7 +164,9 @@ $(document).ready(function () {
 
                 if (Array.isArray(events) && events.length > 0) {
                     // Filter and process only Group A events
-                    const groupAEvents = events.filter(event => ['1', '2', '5', '6', '7'].includes(event.categories[0]));
+                    const groupAEvents = events.filter(event => {
+                        return event.categories && event.categories.length > 0 && ['1', '2', '5', '6', '7'].includes(event.categories[0]);
+                    });
                     processEvents(groupAEvents, token, start, end, callback);
                 } else {
                     console.error("No valid events returned. Please check the API response.");
