@@ -28,6 +28,7 @@
 <script>
 $(document).ready(function () {
     console.log("Initializing SimplyBook Widget with Events...");
+    var allFetchedEvents = []; // Global variable to store all fetched events
 
     // Initialize JSON-RPC Client for SimplyBook API to fetch the token
     try {
@@ -42,8 +43,10 @@ $(document).ready(function () {
         loginClient.getToken('thefreshlifeconference', 'a5dc632dedf9f85bb8d5bfdd1a8087401787b413111ac0cfbca269a84ec348f3', function (token) {
             if (token) {
                 console.log("Fetched token: ", token);
-                // Fetch events and render the calendar with the token
-                renderCalendarWithEvents(token);
+                // Fetch all events initially
+                fetchAllEvents(token, function() {
+                    renderCalendarWithEvents();
+                });
             } else {
                 console.error("Failed to fetch token. Please check your API credentials.");
             }
@@ -52,7 +55,7 @@ $(document).ready(function () {
         console.error("Error initializing JSON-RPC client or fetching token:", e);
     }
 
-    function renderCalendarWithEvents(token) {
+    function renderCalendarWithEvents() {
         var calendarEl = document.getElementById('calendar');
         var calendar = new FullCalendar.Calendar(calendarEl, {
             schedulerLicenseKey: 'CC-Attribution-NonCommercial-NoDerivatives',
@@ -66,12 +69,12 @@ $(document).ready(function () {
             },
             dayMinWidth: 150, // Set column width
             resources: getHardcodedResources(), // Use hardcoded resources
-            events: function (info, successCallback, failureCallback) {
-                // Fetch events for the current date range
-                fetchEventsForRange(token, info.startStr, info.endStr, function(apiEvents) {
-                    const hardcodedEvents = getHardcodedEvents(); // Get hardcoded events
-                    successCallback([...apiEvents, ...hardcodedEvents]); // Combine API and hardcoded events
-                });
+            events: function (info, successCallback) {
+                // Filter events for the current date range
+                const filteredEvents = allFetchedEvents.filter(event => 
+                    new Date(event.start) >= new Date(info.startStr) && new Date(event.start) < new Date(info.endStr)
+                );
+                successCallback(filteredEvents);
             },
             height: 'auto',
             slotMinTime: '07:00',
@@ -98,10 +101,12 @@ $(document).ready(function () {
                 if (arg.event && arg.event.title) {
                     // Determine border color based on category
                     const borderColor = getCategoryBorderColor(arg.event.extendedProps.category);
+                    // Display slots available only for non-hardcoded events
+                    const slotsAvailable = arg.event.extendedProps.displaySlots !== false ? `Slots Available: ${arg.event.extendedProps.bookings_limit}` : '';
                     return {
                         html: `<div class="fc-event-content" style="border-top: 4px solid ${borderColor} !important;">
                                   <div class="fc-event-title">${arg.event.title}</div>
-                                  <div class="fc-event-slots">${arg.event.extendedProps.displaySlots ? `Slots Available: ${arg.event.extendedProps.bookings_limit}` : ''}</div> <!-- Display slots available -->
+                                  <div class="fc-event-slots">${slotsAvailable}</div>
                                </div>`
                     };
                 } else {
@@ -124,10 +129,9 @@ $(document).ready(function () {
                     <div class="popup-content">
                         <span class="close-popup" onclick="this.parentElement.parentElement.remove()">×</span>
                         <img src="${getResourceLogo(event.resourceId)}" style="width: 100px; margin: 10px auto;" alt="Resource Logo">
-<p><strong>${formatTimeToAEST(new Date(event.extendedProps.rawStartTime))} - ${formatTimeToAEST(new Date(event.extendedProps.rawEndTime))}</strong></p>
+                        <p><strong>${formatTimeToAEST(new Date(event.extendedProps.rawStartTime))} - ${formatTimeToAEST(new Date(event.extendedProps.rawEndTime))}</strong></p>
                         <h3>${event.title}</h3>
-                        <p>${event.extendedProps.description}</p>
-                        <img src="${getResourceLogo(event.resourceId)}" style="width: 100px; margin: 10px auto;" alt="Resource Logo">
+                        <p>${event.extendedProps.description}</p>                  
                         <div class="popup-footer">Bookings open Monday 23rd October at 7:00PM AEST</div>
                     </div>
                 `;
@@ -137,6 +141,14 @@ $(document).ready(function () {
         });
 
         calendar.render();
+    }
+
+    function fetchAllEvents(token, callback) {
+        fetchEventsForRange(token, '2024-10-29', '2024-10-31', function(apiEvents) {
+            const hardcodedEvents = getHardcodedEvents(); // Get hardcoded events
+            allFetchedEvents = [...apiEvents, ...hardcodedEvents]; // Store all events
+            callback();
+        });
     }
 
     function fetchEventsForRange(token, start, end, callback) {
@@ -298,8 +310,9 @@ $(document).ready(function () {
                 start: '2024-10-29T15:30:00',
                 end: '2024-10-29T16:00:00',
                 resourceId: resource.id,
-                categories: '9',
-                display: 'background'
+                category: '9', // Correct property name to 'category'
+                display: 'background',
+                displaySlots: false
             },
             {
                 id: `bg-event-${resource.id}-2`,
@@ -308,8 +321,9 @@ $(document).ready(function () {
                 start: '2024-10-29T13:00:00',
                 end: '2024-10-29T14:00:00',
                 resourceId: resource.id,
-                categories: '9',
-                display: 'background'
+                category: '9',
+                display: 'background',
+                displaySlots: false
             },
             {
                 id: `bg-event-${resource.id}-3`,
@@ -318,8 +332,9 @@ $(document).ready(function () {
                 start: '2024-10-29T17:30:00',
                 end: '2024-10-29T18:30:00',
                 resourceId: resource.id,
-                categories: '9',
-                display: 'background'
+                category: '9',
+                display: 'background',
+                displaySlots: false
             },
             {
                 id: `bg-event-${resource.id}-4`,
@@ -328,8 +343,9 @@ $(document).ready(function () {
                 start: '2024-10-30T11:30:00',
                 end: '2024-10-30T12:00:00',
                 resourceId: resource.id,
-                categories: '9',
-                display: 'background'
+                category: '9',
+                display: 'background',
+                displaySlots: false
             },
             {
                 id: `bg-event-${resource.id}-5`,
@@ -338,18 +354,20 @@ $(document).ready(function () {
                 start: '2024-10-30T13:30:00',
                 end: '2024-10-30T14:30:00',
                 resourceId: resource.id,
-                categories: '9',
-                display: 'background'
+                category: '9',
+                display: 'background',
+                displaySlots: false
             },
             {
                 id: `bg-event-${resource.id}-6`,
-                title: '',
+                title: ' ',
                 description: '<b>Afternoon Tea, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
                 start: '2024-10-30T16:00:00',
                 end: '2024-10-30T16:30:00',
                 resourceId: resource.id,
-                categories: '9',
-                display: 'background'
+                category: '9',
+                display: 'background',
+                displaySlots: false
             },
             {
                 id: `bg-event-${resource.id}-7`,
@@ -358,8 +376,9 @@ $(document).ready(function () {
                 start: '2024-10-30T17:30:00',
                 end: '2024-10-30T18:30:00',
                 resourceId: resource.id,
-                categories: '9',
-                display: 'background'
+                category: '9',
+                display: 'background',
+                displaySlots: false
             },
             {
                 id: `bg-event-${resource.id}-8`,
@@ -368,8 +387,9 @@ $(document).ready(function () {
                 start: '2024-10-31T11:00:00',
                 end: '2024-10-31T11:30:00',
                 resourceId: resource.id,
-                categories: '9',
-                display: 'background'
+                category: '9',
+                display: 'background',
+                displaySlots: false
             },
             {
                 id: `bg-event-${resource.id}-9`,
@@ -378,8 +398,9 @@ $(document).ready(function () {
                 start: '2024-10-31T13:30:00',
                 end: '2024-10-31T14:30:00',
                 resourceId: resource.id,
-                categories: '9',
-                display: 'background'
+                category: '9',
+                display: 'background',
+                displaySlots: false
             },
             {
                 id: `bg-event-${resource.id}-10`,
@@ -388,8 +409,9 @@ $(document).ready(function () {
                 start: '2024-10-31T16:00:00',
                 end: '2024-10-31T16:30:00',
                 resourceId: resource.id,
-                categories: '9',
-                display: 'background'
+                category: '9',
+                display: 'background',
+                displaySlots: false
             },
             {
                 id: `bg-event-${resource.id}-11`,
@@ -398,8 +420,9 @@ $(document).ready(function () {
                 start: '2024-10-31T18:00:00',
                 end: '2024-10-31T22:30:00',
                 resourceId: resource.id,
-                categories: '9',
-                display: 'background'
+                category: '9',
+                display: 'background',
+                displaySlots: false
             }
         ]);
     }
@@ -434,7 +457,7 @@ $(document).ready(function () {
 
     function getHardcodedResources() {
         return [
-              { id: '29', title: 'Woodlands Stage', category: 'Program', order_id: 'a', logo: ' ' },
+            { id: '29', title: 'Woodlands Stage', category: 'Program', order_id: 'a', logo: ' ' },
             { id: '30', title: 'Fresh Lounge', category: 'Program', order_id: 'b', logo: ' ' },
             { id: '8', title: 'Merz | Room 1', category: 'Training Suites', order_id: 'c', logo: 'Merz.png' },
             { id: '23', title: 'Merz | Room 2', category: 'Training Suites', order_id: 'd', logo: 'Merz.png' },
