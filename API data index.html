@@ -220,8 +220,10 @@ $(document).ready(function () {
             ],
             eventContent: function (arg) {
                 if (arg.event && arg.event.title) {
+                    // Determine border color based on category
+                    const borderColor = getCategoryBorderColor(arg.event.extendedProps.category);
                     return {
-                        html: `<div class="fc-event-content">
+                        html: `<div class="fc-event-content" style="border-top: 4px solid ${borderColor} !important;">
                                   <div class="fc-event-title">${arg.event.title}</div>
                                   <div class="fc-event-slots">Slots Available: ${arg.event.extendedProps.bookings_limit}</div> <!-- Display slots available -->
                                </div>`
@@ -231,11 +233,6 @@ $(document).ready(function () {
                 }
             },
             eventDidMount: function (info) {
-                // Set border color based on category
-                const category = info.event.extendedProps.category;
-                info.el.style.borderTop = `4px solid ${getCategoryBorderColor(category)} !important`;
-
-                // Initialize tippy.js tooltip
                 tippy(info.el, {
                     content: `<strong>${info.event.title}</strong><br>${info.event.extendedProps.description}`,
                     allowHTML: true,
@@ -311,20 +308,18 @@ $(document).ready(function () {
                 const providerId = Object.keys(event.unit_map)[0]; // Get the provider ID from the unit_map
 
                 // Fetch start time dynamically using getStartTimeMatrix
-                fetchEventStartTime(token, event.id, providerId, start, end, function (startTime, rawStartTime) {
+                fetchEventStartTime(token, event.id, providerId, start, end, function (startTime) {
                     if (startTime && isDateInRange(startTime, start, end)) { // Check if start time is within the active date range
                         // Calculate end time using event duration
                         const duration = parseInt(event.duration); // Duration in minutes
-                        const endTime = new Date(new Date(startTime).getTime() + duration * 60000); // Add duration to start time
-
+                        const endTime = new Date(event.extendedProps.rawEndTime; // Add duration to start time
+                                 
                         // Push the event into the calendarEvents array
                         calendarEvents.push({
                             id: event.id,
                             title: event.name,
                             start: startTime,
                             end: endTime.toISOString(),
-                            rawStartTime: rawStartTime,
-                            rawEndTime: endTime,
                             resourceId: providerId,
                             description: event.description || '',
                             bookings_limit: event.bookings_limit, // Add bookings limit
@@ -397,16 +392,16 @@ $(document).ready(function () {
     }
 
     function getCategoryBorderColor(category) {
-        const categoryColors = {
-            '1': '#142652',
-            '2': '#84cdb8',
-            '3': '#84cdb8',
-            '5': '#4b6c59',
-            '6': '#cbe4e0',
-            '7': '#142652',
-            '8': '#84cdb8'
-        };
-        return categoryColors[category] || '#142652'; // Default color
+        switch (category) {
+            case '1': return '#142652';
+            case '2': return '#84cdb8';
+            case '3': return '#84cdb8';
+            case '5': return '#4b6c59';
+            case '6': return '#cbe4e0';
+            case '7': return '#142652';
+            case '8': return '#84cdb8';
+            default: return '#142652'; // Default color
+        }
     }
 
     function getHardcodedResources() {
