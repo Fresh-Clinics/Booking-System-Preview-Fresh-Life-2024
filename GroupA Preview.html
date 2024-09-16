@@ -42,8 +42,10 @@ $(document).ready(function () {
         loginClient.getToken('thefreshlifeconference', 'a5dc632dedf9f85bb8d5bfdd1a8087401787b413111ac0cfbca269a84ec348f3', function (token) {
             if (token) {
                 console.log("Fetched token: ", token);
-                // Fetch events for all three days and render the calendar with the token
-                preloadEventsForAllDays(token);
+                // Fetch events and render the calendar with the token
+                preloadEventsForAllDays(token, function(allEvents) {
+                    renderCalendarWithEvents(token, allEvents);
+                });
             } else {
                 console.error("Failed to fetch token. Please check your API credentials.");
             }
@@ -52,20 +54,7 @@ $(document).ready(function () {
         console.error("Error initializing JSON-RPC client or fetching token:", e);
     }
 
-    let allEvents = []; // Store all events for all three days
-
-    function preloadEventsForAllDays(token) {
-        const start = '2024-10-29';
-        const end = '2024-10-31';
-
-        fetchEventsForRange(token, start, end, function(apiEvents) {
-            const hardcodedEvents = getHardcodedEvents(); // Get hardcoded events
-            allEvents = [...apiEvents, ...hardcodedEvents]; // Combine API and hardcoded events
-            renderCalendarWithEvents(); // Render the calendar
-        });
-    }
-
-    function renderCalendarWithEvents() {
+    function renderCalendarWithEvents(token, allEvents) {
         var calendarEl = document.getElementById('calendar');
         var calendar = new FullCalendar.Calendar(calendarEl, {
             schedulerLicenseKey: 'CC-Attribution-NonCommercial-NoDerivatives',
@@ -79,12 +68,11 @@ $(document).ready(function () {
             },
             dayMinWidth: 150, // Set column width
             resources: getHardcodedResources(), // Use hardcoded resources
-            events: function (info, successCallback) {
-                // Filter events based on the current visible date range
-                const filteredEvents = allEvents.filter(event =>
-                    (new Date(event.start) >= new Date(info.startStr) && new Date(event.start) < new Date(info.endStr))
-                );
-                successCallback(filteredEvents);
+            events: function (info, successCallback, failureCallback) {
+                const filteredEvents = allEvents.filter(event => {
+                    return new Date(event.start) >= new Date(info.startStr) && new Date(event.end) <= new Date(info.endStr);
+                });
+                successCallback(filteredEvents); // Filtered events based on the date range
             },
             height: 'auto',
             slotMinTime: '07:00',
@@ -114,7 +102,7 @@ $(document).ready(function () {
                     return {
                         html: `<div class="fc-event-content" style="border-top: 4px solid ${borderColor} !important;">
                                   <div class="fc-event-title">${arg.event.title}</div>
-                                  ${arg.event.extendedProps.displaySlots ? `<div class="fc-event-slots">Slots Available: ${arg.event.extendedProps.bookings_limit}</div>` : ''} <!-- Display slots available if applicable -->
+                                  <div class="fc-event-slots">${arg.event.extendedProps.displaySlots ? `Slots Available: ${arg.event.extendedProps.bookings_limit}` : ''}</div> <!-- Display slots available -->
                                </div>`
                     };
                 } else {
@@ -151,6 +139,22 @@ $(document).ready(function () {
         calendar.render();
     }
 
+    function preloadEventsForAllDays(token, callback) {
+        const allEvents = [];
+
+        // Fetch events for each day and store them in allEvents
+        ['2024-10-29', '2024-10-30', '2024-10-31'].forEach((date, index, array) => {
+            fetchEventsForRange(token, date, date, function(apiEvents) {
+                allEvents.push(...apiEvents);
+                if (index === array.length - 1) {
+                    // Once all days are fetched
+                    const hardcodedEvents = getHardcodedEvents(); // Get hardcoded events
+                    callback([...allEvents, ...hardcodedEvents]); // Combine API and hardcoded events
+                }
+            });
+        });
+    }
+
     function fetchEventsForRange(token, start, end, callback) {
         var client = new JSONRpcClient({
             'url': 'https://user-api.simplybook.me',
@@ -175,9 +179,9 @@ $(document).ready(function () {
                 if (Array.isArray(events) && events.length > 0) {
                     // Filter and process only Group A events
                     const groupAEvents = events.filter(event => {
-                        return event.categories && event.categories.length > 0 && ['1', '2', '5', '6', '7', '9'].includes(event.categories[0]);
+                        return event.categories && event.categories.length > 0 && ['1', '2', '5', '6', '7', '9', '10', '11', '12', '13'].includes(event.categories[0]);
                     });
-                    processEvents(groupAEvents, token, callback);
+                    processEvents(groupAEvents, token, start, end, callback);
                 } else {
                     console.error("No valid events returned. Please check the API response.");
                     callback([]); // Return empty array if no events
@@ -192,7 +196,7 @@ $(document).ready(function () {
         });
     }
 
-    function processEvents(events, token, callback) {
+    function processEvents(events, token, start, end, callback) {
         var calendarEvents = [];
         var processedCount = 0;
 
@@ -202,8 +206,8 @@ $(document).ready(function () {
                 const providerId = Object.keys(event.unit_map)[0]; // Get the provider ID from the unit_map
 
                 // Fetch start time dynamically using getStartTimeMatrix
-                fetchEventStartTime(token, event.id, providerId, function (startTime) {
-                    if (startTime) {
+                fetchEventStartTime(token, event.id, providerId, start, end, function (startTime) {
+                    if (startTime && isDateInRange(startTime, start, end)) { // Check if start time is within the active date range
                         // Calculate end time using event duration
                         fetchEventEndTime(token, startTime, event.id, providerId, function (endTime) {
                             if (endTime) {
@@ -219,7 +223,7 @@ $(document).ready(function () {
                                     category: event.categories[0], // Get the first category
                                     rawStartTime: startTime, // For popup
                                     rawEndTime: endTime, // For popup
-                                    displaySlots: true // Display slots for dynamic events
+                                    displaySlots: event.display !== 'background'
                                 });
                             }
 
@@ -246,7 +250,7 @@ $(document).ready(function () {
         });
     }
 
-    function fetchEventStartTime(token, eventId, unitId, callback) {
+    function fetchEventStartTime(token, eventId, unitId, from, to, callback) {
         var client = new JSONRpcClient({
             'url': 'https://user-api.simplybook.me',
             'headers': {
@@ -258,7 +262,7 @@ $(document).ready(function () {
             }
         });
 
-        client.request('getStartTimeMatrix', ['2024-10-29', '2024-10-31', eventId, [unitId], 1, null, []], function (timeMatrix) {
+        client.request('getStartTimeMatrix', [from, from, eventId, [unitId], 1, null, []], function (timeMatrix) {
             console.log("Fetched start times for event:", timeMatrix);
             if (timeMatrix && Object.keys(timeMatrix).length > 0) {
                 const firstDate = Object.keys(timeMatrix)[0]; // Get the first available date
@@ -361,7 +365,7 @@ $(document).ready(function () {
             },
             {
                 id: `bg-event-${resource.id}-6`,
-                title: '',
+                title: ' ',
                 description: '<b>Afternoon Tea, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
                 start: '2024-10-30T16:00:00',
                 end: '2024-10-30T16:30:00',
@@ -437,6 +441,11 @@ $(document).ready(function () {
         }).format(date);
     }
 
+    function isDateInRange(date, start, end) {
+        const dateObj = new Date(date);
+        return dateObj >= new Date(start) && dateObj <= new Date(end); // Check if date is within the range
+    }
+
     function getCategoryBorderColor(category) {
         switch (category) {
             case '1': return '#142652';
@@ -453,7 +462,7 @@ $(document).ready(function () {
 
     function getHardcodedResources() {
         return [
-              { id: '29', title: 'Woodlands Stage', category: 'Program', order_id: 'a', logo: ' ' },
+            { id: '29', title: 'Woodlands Stage', category: 'Program', order_id: 'a', logo: ' ' },
             { id: '30', title: 'Fresh Lounge', category: 'Program', order_id: 'b', logo: ' ' },
             { id: '8', title: 'Merz | Room 1', category: 'Training Suites', order_id: 'c', logo: 'Merz.png' },
             { id: '23', title: 'Merz | Room 2', category: 'Training Suites', order_id: 'd', logo: 'Merz.png' },
