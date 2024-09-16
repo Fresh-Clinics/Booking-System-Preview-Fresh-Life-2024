@@ -29,6 +29,8 @@
 $(document).ready(function () {
     console.log("Initializing SimplyBook Widget with Events...");
 
+    let allEvents = []; // Store all events fetched once
+
     // Initialize JSON-RPC Client for SimplyBook API to fetch the token
     try {
         var loginClient = new JSONRpcClient({
@@ -42,8 +44,11 @@ $(document).ready(function () {
         loginClient.getToken('thefreshlifeconference', 'a5dc632dedf9f85bb8d5bfdd1a8087401787b413111ac0cfbca269a84ec348f3', function (token) {
             if (token) {
                 console.log("Fetched token: ", token);
-                // Fetch events and render the calendar with the token
-                renderCalendarWithEvents(token);
+                // Fetch events once and render the calendar with the token
+                fetchAllEvents(token, function(apiEvents) {
+                    allEvents = apiEvents; // Store events
+                    renderCalendarWithEvents(token, allEvents);
+                });
             } else {
                 console.error("Failed to fetch token. Please check your API credentials.");
             }
@@ -52,7 +57,7 @@ $(document).ready(function () {
         console.error("Error initializing JSON-RPC client or fetching token:", e);
     }
 
-    function renderCalendarWithEvents(token) {
+    function renderCalendarWithEvents(token, events) {
         var calendarEl = document.getElementById('calendar');
         var calendar = new FullCalendar.Calendar(calendarEl, {
             schedulerLicenseKey: 'CC-Attribution-NonCommercial-NoDerivatives',
@@ -67,11 +72,11 @@ $(document).ready(function () {
             dayMinWidth: 150, // Set column width
             resources: getHardcodedResources(), // Use hardcoded resources
             events: function (info, successCallback, failureCallback) {
-                // Fetch events for the current date range
-                fetchEventsForRange(token, info.startStr, info.endStr, function(apiEvents) {
-                    const hardcodedEvents = getHardcodedEvents(); // Get hardcoded events
-                    successCallback([...apiEvents, ...hardcodedEvents]); // Combine API and hardcoded events
+                // Filter events for the current date range from pre-fetched events
+                const filteredEvents = events.filter(event => {
+                    return (new Date(event.start) >= new Date(info.start) && new Date(event.start) <= new Date(info.end));
                 });
+                successCallback(filteredEvents);
             },
             height: 'auto',
             slotMinTime: '07:00',
@@ -96,14 +101,12 @@ $(document).ready(function () {
             ],
             eventContent: function (arg) {
                 if (arg.event && arg.event.title) {
-                    const isBackgroundEvent = arg.event.display === 'background';
-                    const displaySlots = arg.event.extendedProps.displaySlots && !isBackgroundEvent ? `Slots Available: ${arg.event.extendedProps.bookings_limit}` : '';
                     // Determine border color based on category
                     const borderColor = getCategoryBorderColor(arg.event.extendedProps.category);
                     return {
-                        html: `<div class="fc-event-content" style="${isBackgroundEvent ? '' : `border-top: 4px solid ${borderColor} !important;`}">
+                        html: `<div class="fc-event-content" style="border-top: 4px solid ${borderColor} !important;">
                                   <div class="fc-event-title">${arg.event.title}</div>
-                                  <div class="fc-event-slots">${displaySlots}</div>
+                                  <div class="fc-event-slots">${arg.event.extendedProps.displaySlots ? `Slots Available: ${arg.event.extendedProps.bookings_limit}` : ''}</div> <!-- Display slots available -->
                                </div>`
                     };
                 } else {
@@ -140,7 +143,7 @@ $(document).ready(function () {
         calendar.render();
     }
 
-    function fetchEventsForRange(token, start, end, callback) {
+    function fetchAllEvents(token, callback) {
         var client = new JSONRpcClient({
             'url': 'https://user-api.simplybook.me',
             'headers': {
@@ -166,7 +169,7 @@ $(document).ready(function () {
                     const groupAEvents = events.filter(event => {
                         return event.categories && event.categories.length > 0 && ['1', '2', '5', '6', '7', '9'].includes(event.categories[0]);
                     });
-                    processEvents(groupAEvents, token, start, end, callback);
+                    processEvents(groupAEvents, token, callback);
                 } else {
                     console.error("No valid events returned. Please check the API response.");
                     callback([]); // Return empty array if no events
@@ -181,7 +184,7 @@ $(document).ready(function () {
         });
     }
 
-    function processEvents(events, token, start, end, callback) {
+    function processEvents(events, token, callback) {
         var calendarEvents = [];
         var processedCount = 0;
 
@@ -191,8 +194,8 @@ $(document).ready(function () {
                 const providerId = Object.keys(event.unit_map)[0]; // Get the provider ID from the unit_map
 
                 // Fetch start time dynamically using getStartTimeMatrix
-                fetchEventStartTime(token, event.id, providerId, start, end, function (startTime) {
-                    if (startTime && isDateInRange(startTime, start, end)) { // Check if start time is within the active date range
+                fetchEventStartTime(token, event.id, providerId, function (startTime) {
+                    if (startTime) {
                         // Calculate end time using event duration
                         fetchEventEndTime(token, startTime, event.id, providerId, function (endTime) {
                             if (endTime) {
@@ -207,21 +210,22 @@ $(document).ready(function () {
                                     bookings_limit: event.bookings_limit, // Add bookings limit
                                     category: event.categories[0], // Get the first category
                                     rawStartTime: startTime, // For popup
-                                    rawEndTime: endTime, // For popup
-                                    displaySlots: true
+                                    rawEndTime: endTime // For popup
                                 });
                             }
 
                             // Check if all events are processed
                             processedCount++;
                             if (processedCount === events.length) {
-                                callback(calendarEvents); // Callback with all processed events
+                                const hardcodedEvents = getHardcodedEvents(); // Get hardcoded events
+                                callback([...calendarEvents, ...hardcodedEvents]); // Combine API and hardcoded events
                             }
                         });
                     } else {
                         processedCount++;
                         if (processedCount === events.length) {
-                            callback(calendarEvents); // Callback with all processed events
+                            const hardcodedEvents = getHardcodedEvents(); // Get hardcoded events
+                            callback([...calendarEvents, ...hardcodedEvents]); // Combine API and hardcoded events
                         }
                     }
                 });
@@ -229,13 +233,14 @@ $(document).ready(function () {
                 console.warn("Event missing required data or incorrect format:", event);
                 processedCount++;
                 if (processedCount === events.length) {
-                    callback(calendarEvents); // Callback with all processed events
+                    const hardcodedEvents = getHardcodedEvents(); // Get hardcoded events
+                    callback([...calendarEvents, ...hardcodedEvents]); // Combine API and hardcoded events
                 }
             }
         });
     }
 
-    function fetchEventStartTime(token, eventId, unitId, from, to, callback) {
+    function fetchEventStartTime(token, eventId, unitId, callback) {
         var client = new JSONRpcClient({
             'url': 'https://user-api.simplybook.me',
             'headers': {
@@ -247,7 +252,7 @@ $(document).ready(function () {
             }
         });
 
-        client.request('getStartTimeMatrix', [from, from, eventId, [unitId], 1, null, []], function (timeMatrix) {
+        client.request('getStartTimeMatrix', ['2024-10-29', '2024-10-31', eventId, [unitId], 1, null, []], function (timeMatrix) {
             console.log("Fetched start times for event:", timeMatrix);
             if (timeMatrix && Object.keys(timeMatrix).length > 0) {
                 const firstDate = Object.keys(timeMatrix)[0]; // Get the first available date
