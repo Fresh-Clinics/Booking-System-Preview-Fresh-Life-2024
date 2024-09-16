@@ -2,10 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="X-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fetch Cartesian Start Times</title>
-
     <!-- Include jQuery -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <!-- Include JSON-RPC Client Library for SimplyBook.me -->
@@ -13,73 +11,101 @@
 </head>
 <body>
 
-<h1>Fetch Cartesian Start Times</h1>
-<div id="status">Fetching data...</div>
+<h1>Fetching Cartesian Start Times...</h1>
 
 <script>
-$(document).ready(function () {
-    const apiToken = '897ead6108e21774d62e8cdcd7fd1faf16cf003bc5e93e2f8d502be3afc5f878'; // New API key
-    const companyLogin = 'thefreshlifeconference';
-    const dateFrom = '2024-10-29';
-    const dateTo = '2024-10-31';
+// Your new API key
+const API_KEY = '897ead6108e21774d62e8cdcd7fd1faf16cf003bc5e93e2f8d502be3afc5f878';
 
-    // Load events from your saved JSON data
-    function loadEventData(callback) {
-        $.getJSON('https://raw.githubusercontent.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/main/data%20pull.json', function(eventData) {
-            // Ensure the data is in array format
-            if (typeof eventData === 'object' && !Array.isArray(eventData)) {
-                eventData = Object.values(eventData); // Convert to array if it's an object
-            }
+// Function to get the token using the API key
+function getToken(apiKey, callback) {
+    var loginClient = new JSONRpcClient({
+        'url': 'https://user-api.simplybook.me/login',
+        'onerror': function (error) {
+            console.error("Login Error:", error);
+        }
+    });
+
+    loginClient.getToken('thefreshlifeconference', apiKey, function (token) {
+        if (token) {
+            console.log("Fetched token: ", token);
+            callback(token); // Callback with the fetched token
+        } else {
+            console.error("Failed to fetch token. Please check your API credentials.");
+        }
+    });
+}
+
+// Function to fetch event data from local JSON file
+function loadEventData(callback) {
+    $.getJSON('data pull.json', function(eventData) {  // Ensure 'data pull.json' is in the same directory
+        console.log("Loaded event data:", eventData);
+
+        if (typeof eventData === 'object' && !Array.isArray(eventData)) {
+            eventData = Object.values(eventData);
+        }
+
+        if (Array.isArray(eventData)) {
             callback(eventData);
-        }).fail(function() {
-            console.error("Failed to load event data.");
-        });
-    }
+        } else {
+            console.error("Event data is not an array. Cannot proceed.");
+        }
+    }).fail(function() {
+        console.error("Failed to load event data.");
+    });
+}
 
-    // Extract event ID and unit ID pairs from loaded data
-    function extractEventIdUnitPairs(eventData) {
-        const pairs = [];
-        eventData.forEach(event => {
-            const unitIds = Object.keys(event.unit_map);
-            unitIds.forEach(unitId => {
-                pairs.push({
+// Function to extract eventId and unitId pairs
+function extractEventIdUnitPairs(eventData) {
+    let eventUnitPairs = [];
+    eventData.forEach(event => {
+        if (event.id && event.unit_map) {
+            Object.keys(event.unit_map).forEach(unitId => {
+                eventUnitPairs.push({
                     eventId: event.id,
                     unitId: parseInt(unitId)
                 });
             });
-        });
-        return pairs;
-    }
-
-    // Fetch Cartesian start times
-    function fetchCartesianStartTimes(pairs) {
-        var client = new JSONRpcClient({
-            'url': 'https://user-api.simplybook.me',
-            'headers': {
-                'X-Company-Login': companyLogin,
-                'X-Token': apiToken
-            },
-            'onerror': function (error) {
-                console.error("Error in JSON-RPC client setup:", error);
-            }
-        });
-
-        pairs.forEach(pair => {
-            client.request('getCartesianStartTimeMatrix', [dateFrom, dateTo, pair.eventId, [pair.unitId], 1, null, []], function (timeMatrix) {
-                console.log(`Fetched start times for event ${pair.eventId} and unit ${pair.unitId}:`, timeMatrix);
-            }, function (error) {
-                console.error(`Error fetching start times for event ${pair.eventId} and unit ${pair.unitId}:`, error);
-            });
-        });
-    }
-
-    // Load the event data and process the start times
-    loadEventData(function(eventData) {
-        const pairs = extractEventIdUnitPairs(eventData);
-        fetchCartesianStartTimes(pairs);
-        $('#status').text('Data fetching initiated. Check the console for results.');
+        }
     });
-});
+    return eventUnitPairs;
+}
+
+// Function to fetch Cartesian start times for each event-unit pair
+function fetchCartesianStartTimes(token, pairs) {
+    var client = new JSONRpcClient({
+        'url': 'https://user-api.simplybook.me',
+        'headers': {
+            'X-Company-Login': 'thefreshlifeconference',
+            'X-Token': token
+        },
+        'onerror': function (error) {
+            console.error("Error in JSON-RPC client setup:", error);
+        }
+    });
+
+    pairs.forEach(pair => {
+        client.request('getCartesianStartTimeMatrix', ['2024-10-29', '2024-10-31', pair.eventId, pair.unitId, 1, null, []], function (startTimes) {
+            console.log(`Fetched start times for Event ID ${pair.eventId} and Unit ID ${pair.unitId}:`, startTimes);
+        }, function (error) {
+            console.error("Error fetching cartesian start times:", error);
+        });
+    });
+}
+
+// Main function to run the entire process
+function main() {
+    getToken(API_KEY, function(token) {
+        loadEventData(function(eventData) {
+            const eventUnitPairs = extractEventIdUnitPairs(eventData);
+            fetchCartesianStartTimes(token, eventUnitPairs);
+        });
+    });
+}
+
+// Run the main function
+main();
+
 </script>
 
 </body>
