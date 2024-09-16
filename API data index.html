@@ -231,9 +231,11 @@ $(document).ready(function () {
                 }
             },
             eventDidMount: function (info) {
-                const borderColor = getCategoryBorderColor(info.event.extendedProps.category);
-                info.el.style.borderTop = `4px solid ${borderColor} !important`;
+                // Set border color based on category
+                const category = info.event.extendedProps.category;
+                info.el.style.borderTop = `4px solid ${getCategoryBorderColor(category)} !important`;
 
+                // Initialize tippy.js tooltip
                 tippy(info.el, {
                     content: `<strong>${info.event.title}</strong><br>${info.event.extendedProps.description}`,
                     allowHTML: true,
@@ -321,12 +323,12 @@ $(document).ready(function () {
                             title: event.name,
                             start: startTime,
                             end: endTime.toISOString(),
+                            rawStartTime: rawStartTime,
+                            rawEndTime: endTime,
                             resourceId: providerId,
                             description: event.description || '',
                             bookings_limit: event.bookings_limit, // Add bookings limit
-                            category: event.categories[0], // Get the first category
-                            rawStartTime: rawStartTime,
-                            rawEndTime: endTime.toISOString()
+                            category: event.categories[0] // Get the first category
                         });
 
                         // Check if all events are processed
@@ -369,7 +371,7 @@ $(document).ready(function () {
                 const firstDate = Object.keys(timeMatrix)[0]; // Get the first available date
                 const startTime = timeMatrix[firstDate][0];   // Get the first available time
                 const fullStartTime = `${firstDate}T${startTime}`; // Combine to full ISO date-time string
-                callback(fullStartTime, fullStartTime);
+                callback(fullStartTime, fullStartTime); // Pass both formatted and raw start time
             } else {
                 console.error("No start time available for the given parameters.");
                 callback(null, null);
@@ -395,16 +397,16 @@ $(document).ready(function () {
     }
 
     function getCategoryBorderColor(category) {
-        switch (category) {
-            case '1': return '#142652';
-            case '2': return '#84cdb8';
-            case '3': return '#84cdb8';
-            case '5': return '#4b6c59';
-            case '6': return '#cbe4e0';
-            case '7': return '#142652';
-            case '8': return '#84cdb8';
-            default: return '#142652';
-        }
+        const categoryColors = {
+            '1': '#142652',
+            '2': '#84cdb8',
+            '3': '#84cdb8',
+            '5': '#4b6c59',
+            '6': '#cbe4e0',
+            '7': '#142652',
+            '8': '#84cdb8'
+        };
+        return categoryColors[category] || '#142652'; // Default color
     }
 
     function getHardcodedResources() {
