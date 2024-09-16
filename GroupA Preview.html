@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar with Live Events from SimplyBook.me</title>
+
+    <!-- Include FullCalendar Scheduler CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@6.1.15/index.global.min.css" rel="stylesheet" />
+
+    <!-- Include Tippy.js for tooltips -->
+    <link href="https://unpkg.com/tippy.js@6/dist/tippy.css" rel="stylesheet" />
+
+    <!-- Include FullCalendar Scheduler JS -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@6.1.15/index.global.min.js"></script>
+
+    <!-- Include jQuery -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+    <!-- Include Tippy.js for tooltips -->
+    <script src="https://unpkg.com/@popperjs/core@2"></script>
+    <script src="https://unpkg.com/tippy.js@6"></script>
+
+    <!-- Include JSON-RPC Client Library for SimplyBook.me -->
+    <script src="json-rpc-client.js"></script>
+
+    <!-- Include CSS Styles -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="calendar"></div>
+
+<script>
+$(document).ready(function () {
+    console.log("Initializing SimplyBook Widget with Events...");
+
+    // Initialize JSON-RPC Client for SimplyBook API to fetch the token
+    try {
+        var loginClient = new JSONRpcClient({
+            'url': 'https://user-api.simplybook.me/login',
+            'onerror': function (error) {
+                console.error("Login Error:", error);
+            }
+        });
+
+        // Fetch token dynamically using the SimplyBook API credentials
+        loginClient.getToken('thefreshlifeconference', 'a5dc632dedf9f85bb8d5bfdd1a8087401787b413111ac0cfbca269a84ec348f3', function (token) {
+            if (token) {
+                console.log("Fetched token: ", token);
+                // Fetch events and render the calendar with the token
+                renderCalendarWithEvents(token);
+            } else {
+                console.error("Failed to fetch token. Please check your API credentials.");
+            }
+        });
+    } catch (e) {
+        console.error("Error initializing JSON-RPC client or fetching token:", e);
+    }
+
+    function renderCalendarWithEvents(token) {
+        var calendarEl = document.getElementById('calendar');
+        var calendar = new FullCalendar.Calendar(calendarEl, {
+            schedulerLicenseKey: 'CC-Attribution-NonCommercial-NoDerivatives',
+            initialView: 'resourceTimeGridDay',
+            initialDate: '2024-10-29',
+            timeZone: 'Australia/Sydney', // Set timezone to AEST
+            headerToolbar: {
+                left: 'prev',
+                center: 'title',
+                right: 'next'
+            },
+            dayMinWidth: 150, // Set column width
+            resources: getHardcodedResources(), // Use hardcoded resources
+            events: function (info, successCallback, failureCallback) {
+                // Fetch events for the current date range
+                fetchEventsForRange(token, info.startStr, info.endStr, successCallback);
+            },
+            height: 'auto',
+            slotMinTime: '07:00',
+            slotMaxTime: '23:00',
+            resourceOrder: 'order_id', // Order by order_id
+            businessHours: [
+                {
+                    daysOfWeek: [2],
+                    startTime: '09:00',
+                    endTime: '18:30'
+                },
+                {
+                    daysOfWeek: [3],
+                    startTime: '07:30',
+                    endTime: '19:00'
+                },
+                {
+                    daysOfWeek: [4],
+                    startTime: '07:00',
+                    endTime: '22:30'
+                }
+            ],
+            eventContent: function (arg) {
+                if (arg.event && arg.event.title) {
+                    // Determine border color based on category
+                    const borderColor = getCategoryBorderColor(arg.event.extendedProps.category);
+                    return {
+                        html: `<div class="fc-event-content" style="border-top: 4px solid ${borderColor} !important;">
+                                  <div class="fc-event-title">${arg.event.title}</div>
+                                  <div class="fc-event-slots">Slots Available: ${arg.event.extendedProps.bookings_limit}</div> <!-- Display slots available -->
+                               </div>`
+                    };
+                } else {
+                    return { html: '<div class="fc-event-content"><div class="fc-event-title">Invalid Event</div></div>' };
+                }
+            },
+            eventDidMount: function (info) {
+                tippy(info.el, {
+                    content: `<strong>${info.event.title}</strong><br>${info.event.extendedProps.description}`,
+                    allowHTML: true,
+                    theme: 'light-border',
+                    placement: 'top'
+                });
+            },
+            eventClick: function (info) {
+                const event = info.event;
+                const popup = document.createElement('div');
+                popup.className = 'popup-overlay';
+                popup.innerHTML = `
+                    <div class="popup-content">
+                        <span class="close-popup" onclick="this.parentElement.parentElement.remove()">×</span>
+                        <p><strong>${formatTimeToAEST(new Date(event.extendedProps.rawStartTime))} - ${formatTimeToAEST(new Date(event.extendedProps.rawEndTime))}</strong></p>
+                        <h3>${event.title}</h3>
+                        <p>${event.extendedProps.description}</p>
+                        <div class="popup-footer">Bookings open Monday 23rd October at 7:00PM AEST</div>
+                    </div>
+                `;
+                document.body.appendChild(popup);
+            },
+            allDaySlot: false
+        });
+
+        calendar.render();
+    }
+
+    function fetchEventsForRange(token, start, end, callback) {
+        var client = new JSONRpcClient({
+            'url': 'https://user-api.simplybook.me',
+            'headers': {
+                'X-Company-Login': 'thefreshlifeconference',
+                'X-Token': token
+            },
+            'onerror': function (error) {
+                console.error("Error in JSON-RPC client setup:", error);
+            }
+        });
+
+        client.request('getEventList', [], function (events) {
+            if (events) {
+                console.log("Fetched events (raw):", events);
+
+                // Ensure the events object is correctly handled
+                if (typeof events === 'object' && !Array.isArray(events)) {
+                    events = Object.values(events); // Convert to array if it's an object
+                }
+
+                if (Array.isArray(events) && events.length > 0) {
+                    // Filter and process only Group A events
+                    const groupAEvents = events.filter(event => ['1', '2', '5', '6', '7'].includes(event.categories[0]));
+                    processEvents(groupAEvents, token, start, end, callback);
+                } else {
+                    console.error("No valid events returned. Please check the API response.");
+                    callback([]); // Return empty array if no events
+                }
+            } else {
+                console.error("No events returned. Please check the API response.");
+                callback([]); // Return empty array if no events
+            }
+        }, function (error) {
+            console.error("Error fetching events:", error);
+            callback([]); // Return empty array on error
+        });
+    }
+
+    function processEvents(events, token, start, end, callback) {
+        var calendarEvents = [];
+        var processedCount = 0;
+
+        events.forEach(function (event) {
+            if (event.unit_map && event.id && event.name) {
+                console.log("Processing event:", event); // Log each event to verify its structure
+                const providerId = Object.keys(event.unit_map)[0]; // Get the provider ID from the unit_map
+
+                // Fetch start time dynamically using getStartTimeMatrix
+                fetchEventStartTime(token, event.id, providerId, start, end, function (startTime, rawStartTime) {
+                    if (startTime && isDateInRange(startTime, start, end)) { // Check if start time is within the active date range
+                        // Calculate end time using event duration
+                        fetchEventEndTime(token, rawStartTime, event.id, providerId, function (endTime) {
+                            if (endTime) {
+                                // Push the event into the calendarEvents array
+                                calendarEvents.push({
+                                    id: event.id,
+                                    title: event.name,
+                                    start: startTime,
+                                    end: endTime,
+                                    resourceId: providerId,
+                                    description: event.description || '',
+                                    bookings_limit: event.bookings_limit, // Add bookings limit
+                                    category: event.categories[0], // Get the first category
+                                    rawStartTime: rawStartTime,
+                                    rawEndTime: endTime
+                                });
+                            }
+
+                            // Check if all events are processed
+                            processedCount++;
+                            if (processedCount === events.length) {
+                                callback(calendarEvents); // Callback with all processed events
+                            }
+                        });
+                    } else {
+                        processedCount++;
+                        if (processedCount === events.length) {
+                            callback(calendarEvents); // Callback with all processed events
+                        }
+                    }
+                });
+            } else {
+                console.warn("Event missing required data or incorrect format:", event);
+                processedCount++;
+                if (processedCount === events.length) {
+                    callback(calendarEvents); // Callback with all processed events
+                }
+            }
+        });
+    }
+
+    function fetchEventStartTime(token, eventId, unitId, from, to, callback) {
+        var client = new JSONRpcClient({
+            'url': 'https://user-api.simplybook.me',
+            'headers': {
+                'X-Company-Login': 'thefreshlifeconference',
+                'X-Token': token
+            },
+            'onerror': function (error) {
+                console.error("Error in JSON-RPC client setup:", error);
+            }
+        });
+
+        client.request('getStartTimeMatrix', [from, from, eventId, [unitId], 1, null, []], function (timeMatrix) {
+            console.log("Fetched start times for event:", timeMatrix);
+            if (timeMatrix && Object.keys(timeMatrix).length > 0) {
+                const firstDate = Object.keys(timeMatrix)[0]; // Get the first available date
+                const startTime = timeMatrix[firstDate][0];   // Get the first available time
+                const fullStartTime = `${firstDate}T${startTime}`; // Combine to full ISO date-time string
+                callback(fullStartTime, `${firstDate} ${startTime}`); // Pass both formatted and raw start time
+            } else {
+                console.error("No start time available for the given parameters.");
+                callback(null, null);
+            }
+        }, function (error) {
+            console.error("Error fetching start times:", error);
+            callback(null, null);
+        });
+    }
+
+    function fetchEventEndTime(token, startDateTime, eventId, unitId, callback) {
+        var client = new JSONRpcClient({
+            'url': 'https://user-api.simplybook.me',
+            'headers': {
+                'X-Company-Login': 'thefreshlifeconference',
+                'X-Token': token
+            },
+            'onerror': function (error) {
+                console.error("Error in JSON-RPC client setup:", error);
+            }
+        });
+
+        client.request('calculateEndTime', [startDateTime, eventId, unitId, []], function (endTime) {
+            if (endTime) {
+                callback(endTime);
+            } else {
+                console.error("Error calculating end time:", error);
+                callback(null);
+            }
+        }, function (error) {
+            console.error("Error fetching end time:", error);
+            callback(null);
+        });
+    }
+
+    function formatTimeToAEST(date) {
+        return new Intl.DateTimeFormat('en-AU', {
+            timeZone: 'Australia/Sydney',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        }).format(date);
+    }
+
+    function isDateInRange(date, start, end) {
+        const dateObj = new Date(date);
+        return dateObj >= new Date(start) && dateObj <= new Date(end); // Check if date is within the range
+    }
+
+    function getCategoryBorderColor(category) {
+        switch (category) {
+            case '1': return '#142652';
+            case '2': return '#84cdb8';
+            case '3': return '#84cdb8';
+            case '5': return '#4b6c59';
+            case '6': return '#cbe4e0';
+            case '7': return '#142652';
+            case '8': return '#84cdb8';
+            default: return '#142652'; // Default color
+        }
+    }
+
+    function getHardcodedResources() {
+        return [
+            { id: '29', title: 'Woodlands Stage', category: 'Program', order_id: 'a' },
+            { id: '30', title: 'Fresh Lounge', category: 'Program', order_id: 'b' },
+            { id: '8', title: 'Merz | Room 1', category: 'Training Suites', order_id: 'c' },
+            { id: '23', title: 'Merz | Room 2', category: 'Training Suites', order_id: 'd' },
+            { id: '2', title: 'Galderma | Room 1', category: 'Training Suites', order_id: 'e' },
+            { id: '24', title: 'Galderma | Room 2', category: 'Training Suites', order_id: 'f' },
+            { id: '3', title: 'Allergan', category: 'Training Suites', order_id: 'g' },
+            { id: '4', title: 'Evolus', category: 'Training Suites', order_id: 'h' },
+            { id: '7', title: 'Candela', category: 'Training Suites', order_id: 'i' },
+            { id: '14', title: 'Cryomed', category: 'Training Suites', order_id: 'j' },
+            { id: '13', title: 'Dermocosmetica | Room 1', category: 'Training Suites', order_id: 'k' },
+            { id: '25', title: 'Dermocosmetica | Room 2', category: 'Training Suites', order_id: 'l' },
+            { id: '9', title: 'EnVogue', category: 'Training Suites', order_id: 'm' },
+            { id: '10', title: 'Hugel', category: 'Training Suites', order_id: 'n' },
+            { id: '26', title: 'Rejuran', category: 'Training Suites', order_id: 'o' },
+            { id: '11', title: 'Teoxane', category: 'Training Suites', order_id: 'p' },
+            { id: '12', title: 'Xytide', category: 'Training Suites', order_id: 'q' },
+            { id: '15', title: 'Fresh Clinics | Room 1', category: 'Training Suites', order_id: 'r' },
+            { id: '27', title: 'Fresh Clinics | Room 2', category: 'Training Suites', order_id: 's' },
+            { id: '28', title: 'Laser & Skin Training', category: 'Training Suites', order_id: 't' },
+            { id: '20', title: 'Venus Concept', category: 'Activations Hub', order_id: 'u' },
+            { id: '17', title: 'Alma', category: 'Activations Hub', order_id: 'v' },
+            { id: '19', title: 'Advanced Skin Technology', category: 'Activations Hub', order_id: 'w' },
+            { id: '22', title: 'Fresh Tech Hub', category: 'Activations Hub', order_id: 'x' },
+            { id: '18', title: 'The Skincare Company', category: 'Activations Hub', order_id: 'y' },
+            { id: '21', title: 'Wellness Sessions', category: 'Wellness & Spa', order_id: 'z' },
+            { id: '16', title: 'The Fresh Spa', category: 'Wellness & Spa', order_id: 'zz' }
+        ];
+    }
+});
+</script>
+
+</body>
+</html>
