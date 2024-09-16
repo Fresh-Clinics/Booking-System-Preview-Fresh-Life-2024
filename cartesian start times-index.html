@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fetch Start Times for All Events</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="json-rpc-client.js"></script>
+</head>
+<body>
+
+<script>
+$(document).ready(function () {
+    console.log("Starting to fetch all start times using getCartesianStartTimeMatrix...");
+
+    var loginClient = new JSONRpcClient({
+        'url': 'https://user-api.simplybook.me/login',
+        'onerror': function (error) {
+            console.error("Login Error:", error);
+        }
+    });
+
+    // Fetch token dynamically using the SimplyBook API credentials
+    loginClient.getToken('thefreshlifeconference', 'a5dc632dedf9f85bb8d5bfdd1a8087401787b413111ac0cfbca269a84ec348f3', function (token) {
+        if (token) {
+            console.log("Fetched token: ", token);
+            fetchAllStartTimes(token); // Call function to fetch all start times
+        } else {
+            console.error("Failed to fetch token. Please check your API credentials.");
+        }
+    });
+
+    function fetchAllStartTimes(token) {
+        const eventsDataUrl = "https://raw.githubusercontent.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/main/data%20pull.json"; // URL to your fetched events data
+        const startDate = '2024-10-29';
+        const endDate = '2024-10-31';
+        const allStartTimes = [];
+        let requestCount = 0;
+
+        // Fetch the JSON data for events
+        $.getJSON(eventsDataUrl, function(eventData) {
+            const eventIdUnitPairs = extractEventIdUnitPairs(eventData);
+            
+            eventIdUnitPairs.forEach(pair => {
+                requestCount++;
+                setTimeout(() => { // Adding delay to avoid rate limits
+                    fetchStartTimes(token, pair.eventId, pair.unitId, startDate, endDate, function(startTimes) {
+                        allStartTimes.push({ eventId: pair.eventId, unitId: pair.unitId, startTimes });
+                        console.log(`Fetched start times for Event ${pair.eventId}, Unit ${pair.unitId}: `, startTimes);
+                        if (allStartTimes.length === requestCount) {
+                            console.log("All start times fetched: ", allStartTimes);
+                            exportFetchedData(allStartTimes); // Export all start times after fetching
+                        }
+                    });
+                }, requestCount * 1000); // 1-second delay between each request
+            });
+        });
+    }
+
+    function extractEventIdUnitPairs(eventData) {
+        const eventIdUnitPairs = [];
+        eventData.forEach(event => {
+            if (event.unit_map) {
+                Object.keys(event.unit_map).forEach(unitId => {
+                    eventIdUnitPairs.push({ eventId: event.id, unitId });
+                });
+            }
+        });
+        return eventIdUnitPairs;
+    }
+
+    function fetchStartTimes(token, eventId, unitId, from, to, callback) {
+        var client = new JSONRpcClient({
+            'url': 'https://user-api.simplybook.me',
+            'headers': {
+                'X-Company-Login': 'thefreshlifeconference',
+                'X-Token': token
+            },
+            'onerror': function (error) {
+                console.error("Error in JSON-RPC client setup:", error);
+            }
+        });
+
+        client.request('getCartesianStartTimeMatrix', [from, to, eventId, unitId, 1, null, []], function (timeMatrix) {
+            console.log("Fetched start times for event:", eventId, "unit:", unitId, ":", timeMatrix);
+            callback(timeMatrix);
+        }, function (error) {
+            console.error("Error fetching start times:", error);
+            callback(null);
+        });
+    }
+
+    function exportFetchedData(data) {
+        if (data && data.length > 0) {
+            const dataStr = JSON.stringify(data, null, 2); // Convert to JSON string
+            const blob = new Blob([dataStr], { type: 'application/json' }); // Create a Blob from the JSON string
+            const url = URL.createObjectURL(blob); // Create a URL for the Blob
+
+            const a = document.createElement('a'); // Create a link element
+            a.href = url; // Set the URL to the link
+            a.download = 'fetched_start_times.json'; // Set the download filename
+            a.click(); // Trigger a click to download the file
+
+            console.log("Start times data exported successfully.");
+        } else {
+            console.error("No data to export. Make sure events are fetched correctly.");
+        }
+    }
+});
+</script>
+
+</body>
+</html>
