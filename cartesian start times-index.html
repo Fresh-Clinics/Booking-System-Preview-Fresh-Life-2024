@@ -26,6 +26,10 @@ $(document).ready(function () {
     // Load events from your saved JSON data
     function loadEventData(callback) {
         $.getJSON('https://raw.githubusercontent.com/Fresh-Clinics/Booking-System-Preview-Fresh-Life-2024/main/data%20pull.json', function(eventData) {
+            // Ensure the data is in array format
+            if (typeof eventData === 'object' && !Array.isArray(eventData)) {
+                eventData = Object.values(eventData); // Convert to array if it's an object
+            }
             callback(eventData);
         }).fail(function() {
             console.error("Failed to load event data.");
