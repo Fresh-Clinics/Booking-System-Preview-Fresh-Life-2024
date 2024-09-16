@@ -96,12 +96,14 @@ $(document).ready(function () {
             ],
             eventContent: function (arg) {
                 if (arg.event && arg.event.title) {
+                    const isBackgroundEvent = arg.event.display === 'background';
+                    const displaySlots = arg.event.extendedProps.displaySlots && !isBackgroundEvent ? `Slots Available: ${arg.event.extendedProps.bookings_limit}` : '';
                     // Determine border color based on category
                     const borderColor = getCategoryBorderColor(arg.event.extendedProps.category);
                     return {
-                        html: `<div class="fc-event-content" style="border-top: 4px solid ${borderColor} !important;">
+                        html: `<div class="fc-event-content" style="${isBackgroundEvent ? '' : `border-top: 4px solid ${borderColor} !important;`}">
                                   <div class="fc-event-title">${arg.event.title}</div>
-                                  <div class="fc-event-slots">${arg.event.extendedProps.displaySlots ? `Slots Available: ${arg.event.extendedProps.bookings_limit}` : ''}</div> <!-- Display slots available -->
+                                  <div class="fc-event-slots">${displaySlots}</div>
                                </div>`
                     };
                 } else {
@@ -162,7 +164,7 @@ $(document).ready(function () {
                 if (Array.isArray(events) && events.length > 0) {
                     // Filter and process only Group A events
                     const groupAEvents = events.filter(event => {
-                        return event.categories && event.categories.length > 0 && ['1', '2', '5', '6', '7', '9', '10'].includes(event.categories[0]);
+                        return event.categories && event.categories.length > 0 && ['1', '2', '5', '6', '7', '9'].includes(event.categories[0]);
                     });
                     processEvents(groupAEvents, token, start, end, callback);
                 } else {
@@ -205,7 +207,8 @@ $(document).ready(function () {
                                     bookings_limit: event.bookings_limit, // Add bookings limit
                                     category: event.categories[0], // Get the first category
                                     rawStartTime: startTime, // For popup
-                                    rawEndTime: endTime // For popup
+                                    rawEndTime: endTime, // For popup
+                                    displaySlots: true
                                 });
                             }
 
@@ -297,8 +300,9 @@ $(document).ready(function () {
                 start: '2024-10-29T15:30:00',
                 end: '2024-10-29T16:00:00',
                 resourceId: resource.id,
-                categories: '9',
-                display: 'background'
+                category: '9',
+                display: 'background',
+                displaySlots: false
             },
             {
                 id: `bg-event-${resource.id}-2`,
@@ -307,8 +311,9 @@ $(document).ready(function () {
                 start: '2024-10-29T13:00:00',
                 end: '2024-10-29T14:00:00',
                 resourceId: resource.id,
-                categories: '9',
-                display: 'background'
+                category: '9',
+                display: 'background',
+                displaySlots: false
             },
             {
                 id: `bg-event-${resource.id}-3`,
@@ -317,8 +322,9 @@ $(document).ready(function () {
                 start: '2024-10-29T17:30:00',
                 end: '2024-10-29T18:30:00',
                 resourceId: resource.id,
-                categories: '9',
-                display: 'background'
+                category: '9',
+                display: 'background',
+                displaySlots: false
             },
             {
                 id: `bg-event-${resource.id}-4`,
@@ -327,8 +333,9 @@ $(document).ready(function () {
                 start: '2024-10-30T11:30:00',
                 end: '2024-10-30T12:00:00',
                 resourceId: resource.id,
-                categories: '9',
-                display: 'background'
+                category: '9',
+                display: 'background',
+                displaySlots: false
             },
             {
                 id: `bg-event-${resource.id}-5`,
@@ -337,18 +344,20 @@ $(document).ready(function () {
                 start: '2024-10-30T13:30:00',
                 end: '2024-10-30T14:30:00',
                 resourceId: resource.id,
-                categories: '9',
-                display: 'background'
+                category: '9',
+                display: 'background',
+                displaySlots: false
             },
             {
                 id: `bg-event-${resource.id}-6`,
-                title: ' ',
+                title: '',
                 description: '<b>Afternoon Tea, Sponsor Activations & Networking</b><br><br>In the Restaurant, on the Deck and in the Fresh Lounge',
                 start: '2024-10-30T16:00:00',
                 end: '2024-10-30T16:30:00',
                 resourceId: resource.id,
-                categories: '9',
-                display: 'background'
+                category: '9',
+                display: 'background',
+                displaySlots: false
             },
             {
                 id: `bg-event-${resource.id}-7`,
@@ -357,8 +366,9 @@ $(document).ready(function () {
                 start: '2024-10-30T17:30:00',
                 end: '2024-10-30T18:30:00',
                 resourceId: resource.id,
-                categories: '9',
-                display: 'background'
+                category: '9',
+                display: 'background',
+                displaySlots: false
             },
             {
                 id: `bg-event-${resource.id}-8`,
@@ -367,8 +377,9 @@ $(document).ready(function () {
                 start: '2024-10-31T11:00:00',
                 end: '2024-10-31T11:30:00',
                 resourceId: resource.id,
-                categories: '9',
-                display: 'background'
+                category: '9',
+                display: 'background',
+                displaySlots: false
             },
             {
                 id: `bg-event-${resource.id}-9`,
@@ -377,8 +388,9 @@ $(document).ready(function () {
                 start: '2024-10-31T13:30:00',
                 end: '2024-10-31T14:30:00',
                 resourceId: resource.id,
-                categories: '9',
-                display: 'background'
+                category: '9',
+                display: 'background',
+                displaySlots: false
             },
             {
                 id: `bg-event-${resource.id}-10`,
@@ -387,8 +399,9 @@ $(document).ready(function () {
                 start: '2024-10-31T16:00:00',
                 end: '2024-10-31T16:30:00',
                 resourceId: resource.id,
-                categories: '9',
-                display: 'background'
+                category: '9',
+                display: 'background',
+                displaySlots: false
             },
             {
                 id: `bg-event-${resource.id}-11`,
@@ -397,8 +410,9 @@ $(document).ready(function () {
                 start: '2024-10-31T18:00:00',
                 end: '2024-10-31T22:30:00',
                 resourceId: resource.id,
-                categories: '9',
-                display: 'background'
+                category: '9',
+                display: 'background',
+                displaySlots: false
             }
         ]);
     }
@@ -420,23 +434,20 @@ $(document).ready(function () {
     function getCategoryBorderColor(category) {
         switch (category) {
             case '1': return '#142652';
-            case '2': return '#142652';
-            case '3': return '#142652';
+            case '2': return '#84cdb8';
+            case '3': return '#84cdb8';
             case '5': return '#4b6c59';
             case '6': return '#cbe4e0';
             case '7': return '#142652';
             case '8': return '#84cdb8';
             case '9': return '#ebf7f4';
-            case '10': return '#84cdb8';
-            case '11': return '#84cdb8';
-
             default: return '#142652'; // Default color
         }
     }
 
     function getHardcodedResources() {
         return [
-              { id: '29', title: 'Woodlands Stage', category: 'Program', order_id: 'a', logo: ' ' },
+            { id: '29', title: 'Woodlands Stage', category: 'Program', order_id: 'a', logo: ' ' },
             { id: '30', title: 'Fresh Lounge', category: 'Program', order_id: 'b', logo: ' ' },
             { id: '8', title: 'Merz | Room 1', category: 'Training Suites', order_id: 'c', logo: 'Merz.png' },
             { id: '23', title: 'Merz | Room 2', category: 'Training Suites', order_id: 'd', logo: 'Merz.png' },
