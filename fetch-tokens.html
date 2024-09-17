@@ -1,0 +1,44 @@
+// Fetch Token using SimplyBook.me API
+var loginClient = new JSONRpcClient({
+    'url': 'https://user-api.simplybook.me/login',
+    'onerror': function (error) {
+        alert(error);
+    }
+});
+
+var token = loginClient.getToken('thefreshlifeconference', '897ead6108e21774d62e8cdcd7fd1faf16cf003bc5e93e2f8d502be3afc5f878');
+
+// Check if token is retrieved successfully
+if (token) {
+    console.log('Token retrieved successfully:', token);
+
+    // Fetch Event List
+    var adminClient = new JSONRpcClient({
+        'url': 'https://user-api.simplybook.me/admin',
+        'headers': {
+            'Content-Type': 'application/json',
+            'X-Company-Login': 'thefreshlifeconference',
+            'X-Token': token
+        },
+        'onerror': function (error) {
+            alert(error);
+        }
+    });
+
+    // Get the event list - only visible events
+    var events = adminClient.getEventList(true, true, null, '');
+    console.log('Events:', events);
+
+    // Fetch Cartesian Start Time Matrix for specific dates and event IDs
+    var startDate = '2024-10-29';
+    var endDate = '2024-10-31';
+
+    // Iterate over each event and fetch Cartesian Start Time Matrix
+    events.forEach(function(event) {
+        var eventId = event.id;  // Adjust this depending on the response structure
+        var startTimeMatrix = adminClient.getCartesianStartTimeMatrix(startDate, endDate, eventId, null, null, null, []);
+        console.log('Start Time Matrix for Event ID ' + eventId + ':', startTimeMatrix);
+    });
+} else {
+    console.error('Failed to retrieve token.');
+}
